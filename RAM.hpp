@@ -3,8 +3,6 @@
 
 class RAM {
     public:
-    typedef UInt64 PointerType;
-
     UInt8 size;
     std::unique_ptr<UInt8> data;
 
@@ -15,32 +13,21 @@ class RAM {
 
     RAM() :size(0) { }
 
-    #define accessorOfType(type) \
-    type getUnaligned##type(PointerType address) { \
-        type value; \
-        memcpy(&value, data.get()+address, sizeof(type)); \
-        return value; \
-    } \
-    void setUnaligned##type(PointerType address, type value) { \
-        memcpy(data.get()+address, &value, sizeof(type)); \
-    } \
-    type getAligned##type(PointerType address) { \
-        return *reinterpret_cast<type*>(data.get()+address); \
-    } \
-    void setAligned##type(PointerType address, type value) { \
-        *reinterpret_cast<type*>(data.get()+address) = value; \
+    template<typename type, bool unaligned>
+    void get(AddressType address, type* value) {
+        if(unaligned)
+            memcpy(value, data.get()+address, sizeof(type));
+        else
+            *value = *reinterpret_cast<type*>(data.get()+address);
     }
 
-    accessorOfType(Float64)
-    accessorOfType(UInt64)
-    accessorOfType(Int64)
-    accessorOfType(Float32)
-    accessorOfType(UInt32)
-    accessorOfType(Int32)
-    accessorOfType(UInt16)
-    accessorOfType(Int16)
-    accessorOfType(UInt8)
-    accessorOfType(Int8)
+    template<typename type, bool unaligned>
+    void set(AddressType address, type* value) {
+        if(unaligned)
+            memcpy(data.get()+address, value, sizeof(type));
+        else
+            *reinterpret_cast<type*>(data.get()+address) = *value;
+    }
 };
 
 extern RAM ram;

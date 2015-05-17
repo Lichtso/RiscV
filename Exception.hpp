@@ -2,9 +2,8 @@
 #include "Base.hpp"
 
 class Exception {
-	public:
-
-	enum Type {
+    public:
+    enum Code {
 		InstructionAddressMisaligned,
 		InstructionAccessFault,
 		IllegalInstruction,
@@ -17,9 +16,19 @@ class Exception {
 		EnvironmentCallFromS,
 		EnvironmentCallFromH,
 		EnvironmentCallFromM
-	} type;
+	} cause;
 
-	Exception(Type _type) :type(_type) {
+    Exception(Code _cause)
+        :cause(_cause)
+        { }
+};
 
-	}
+class MemoryAccessException : public Exception {
+    public:
+    AddressType address;
+
+    MemoryAccessException(Code _cause, AddressType _address)
+        :Exception(_cause),
+        address(_address)
+        { }
 };

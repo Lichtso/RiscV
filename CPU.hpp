@@ -1,5 +1,5 @@
 #pragma once
-#include "RAM.hpp"
+#include "CSR.hpp"
 
 template<UInt8 XLEN = 64>
 class CPU {
@@ -8,144 +8,88 @@ class CPU {
     typedef typename std::conditional<XLEN == 64, UInt64, UInt32>::type UIntType;
     typedef typename std::conditional<XLEN == 64, Float64, Float32>::type FloatType;
 
-    enum CSR {
-        fflags = 0x001,
-        frm = 0x002,
-        fcsr = 0x003,
-        cycle = 0xC00,
-        time = 0xC01,
-        instret = 0xC02,
-        cycleh = 0xC80,
-        timeh = 0xC81,
-        instreth = 0xC82,
-        sstatus = 0x100,
-        stvec = 0x101,
-        sie = 0x104,
-        stimecmp = 0x121,
-        stime = 0xD01,
-        stimeh = 0xD81,
-        sscratch = 0x140,
-        sepc = 0x141,
-        scause = 0x142,
-        sbadaddr = 0x143,
-        sip = 0x144,
-        sdst = 0x180,
-        sasid = 0x181,
-        cyclew = 0x900,
-        timew = 0x901,
-        instretw = 0x902,
-        cyclehw = 0x980,
-        timehw = 0x981,
-        instrethw = 0x982,
-        hstatus = 0x200,
-        htvec = 0x201,
-        htdeleg = 0x202,
-        htimecmp = 0x221,
-        htime = 0xE01,
-        htimeh = 0xE81,
-        hscratch = 0x240,
-        hepc = 0x241,
-        hcause = 0x242,
-        hbadaddr = 0x243,
-        tbd = 0x280,
-        stimew = 0xA01,
-        stimehw = 0xA81,
-        mcpuid = 0xF00,
-        mimpid = 0xF01,
-        mhartid = 0xF10,
-        mstatus = 0x300,
-        mtvec = 0x301,
-        mtdeleg = 0x302,
-        mie = 0x304,
-        mtimecmp = 0x321,
-        mtime = 0x701,
-        mtimeh = 0x741,
-        mscratch = 0x340,
-        mepc = 0x341,
-        mcause = 0x342,
-        mbadaddr = 0x343,
-        mip = 0x344,
-        mbase = 0x380,
-        mbound = 0x381,
-        mibase = 0x382,
-        mibound = 0x383,
-        mdbase = 0x384,
-        mdbound = 0x385,
-        htimew = 0xB01,
-        htimehw = 0xB81,
-        mtohost = 0x780,
-        mfromhost = 0x781
-    };
-
     enum MemoryAccessType {
         FetchInstruction = 0,
         LoadData = 4,
         StoreData = 6
     };
 
+    enum PrivilegeMode {
+        User = 0,
+        Supervisor = 1,
+        Hypervisor = 2,
+        Machine = 3
+    };
+
     UIntType regI[32]; // pc = i[0]
     FloatType regF[32];
-    UIntType csr[4096];
+    std::map<UInt16, UIntType> csr;
 
     CPU() {
         memset(regI, 0, sizeof(regI));
         memset(regF, 0, sizeof(regF));
-        memset(csr, 0, sizeof(csr));
     }
 
-    void checkAlignment(MemoryAccessType mat, UIntType address, UInt8 alignment) {
-        if(address%alignment != 0)
-            throw Exception(mat);
+    template<typename type, bool store, bool aligned>
+    void memoryAccess(MemoryAccessType mat, UIntType address, type* value) {
+        if(aligned && address%sizeof(type) != 0)
+            throw MemoryAccessException(mat, address);
+
+        // TODO: TLB
+
+        if(store)
+            ram.set<type, aligned>(address, value);
+        else
+            ram.get<type, aligned>(address, value);
     }
 
     template<typename PteType, UInt8 MaxLen, UInt8 MinLen, UInt8 MaxLevel>
-    UInt64 translatePaged(MemoryAccessType mat, UIntType src) {
+    AddressType translatePaged(PrivilegeMode mode, MemoryAccessType mat, UIntType src) {
         UInt8 type, i = MaxLevel, offsetLen = 12;
-        UInt64 dst = csr[sdst];
+        AddressType dst = csr[csr_sptbr];
         PteType pte;
 
-        bool userMode = true; // TODO
+        // TODO: csr_sasid
 
         while(true) {
-            dst += ((src>>(i*MinLen+offsetLen))&TrailingBitMask(MinLen))*sizeof(PteType);
+            dst += getBitsFrom(src, i*MinLen+offsetLen, MinLen)*sizeof(PteType);
             // TODO: Check dst
 
-            pte = ram.getAlignedUInt32(dst);
+            memoryAccess<PteType, false, true>(mat, dst, &pte);
             if((*pte&0x01) == 0) // Invalid
-                throw Exception(mat+1);
+                throw MemoryAccessException(mat+1, src);
 
-            dst = pte>>10;
-            type = (pte>>1)&TrailingBitMask(5);
+            type = getBitsFrom(pte, 1, 5);
             if(type >= 2) // Leaf
                 break;
 
             if(i == 0) // To many nesting levels
-                throw Exception(mat+1);
+                throw MemoryAccessException(mat+1, src);
             --i;
 
-            dst = (dst&TrailingBitMask(MaxLen+MinLen*MaxLevel))<<offsetLen;
+            dst = getBitsFrom(dst, 10, MaxLen+MinLen*MaxLevel)<<offsetLen;
         }
 
         bool storePte = false;
         switch(mat) {
             case FetchInstruction:
-                if(userMode) {
+                if(mode == User) {
                     if(type >= 8 || (type&2) == 0)
-                        throw Exception(mat+1);
+                        throw MemoryAccessException(mat+1, src);
                 }else{
                     if(type < 6 || (type&2) == 0)
-                        throw Exception(mat+1);
+                        throw MemoryAccessException(mat+1, src);
                 }
             break;
             case LoadData:
-                if(userMode && type >= 8)
-                    throw Exception(mat+1);
+                if(mode == User && type >= 8)
+                    throw MemoryAccessException(mat+1, src);
             break;
             case StoreData:
                 if((type&1) == 0)
-                    throw Exception(mat+1);
-                if(userMode && type >= 8)
-                    throw Exception(mat+1);
+                    throw MemoryAccessException(mat+1, src);
+                if(mode == User && type >= 8)
+                    throw MemoryAccessException(mat+1, src);
                 if((pte&(1<<6)) == 0) { // Dirty Bit
                     pte |= 1<<6;
                     storePte = true;
@@ -156,58 +100,426 @@ class CPU {
             pte |= 1<<5;
             storePte = true;
         }
+        if(storePte)
+            memoryAccess<PteType, true, true>(mat, dst, &pte);
 
         offsetLen += MinLen*i;
-        dst = (dst&TrailingBitMask(MaxLen+MinLen*(MaxLevel-i)))<<offsetLen;
-        return dst|(src&TrailingBitMask(offsetLen));
+        dst = getBitsFrom(dst, 10, MaxLen+MinLen*(MaxLevel-i))<<offsetLen;
+        return dst|getBitsFrom(src, 0, offsetLen);
     }
 
-    UInt64 translate(MemoryAccessType mat, UIntType src) {
-        UInt64 dst;
-        switch((csr[mstatus]>>17)&TrailingBitMask(5)) {
+    AddressType translate(MemoryAccessType mat, UIntType src) {
+        UIntType mstatus = csr[csr_mstatus];
+        UInt8 mPrv = getBitsFrom(mstatus, 16, 1) & (mat!=FetchInstruction);
+        PrivilegeMode mode = getBitsFrom(mstatus, mPrv*3+1, 2);
+        if(mode == Supervisor) {
+            UIntType status = csr[csr_sstatus];
+            if(getBitsFrom(status, 16, 1) & (mat!=FetchInstruction))
+                mode = getBitsFrom(status, 4, 1);
+        }
+
+        AddressType dst;
+        switch(getBitsFrom(mstatus, 17, 5)) {
             case 0: // Mbare
                 dst = src;
             break;
             case 1: // Mbb
-                if(src >= csr[mbound])
-                    throw Exception(mat+1);
-                dst = src+csr[mbase];
+                if(src >= csr[csr_mbound])
+                    throw MemoryAccessException(mat+1, src);
+                dst = src+csr[csr_mbase];
             break;
-            case 2: // Mbbid
+            case 2: { // Mbbid
+                UIntType halfVAS = 1<<(sizeof(UIntType)*8-1);
                 if(mat == FetchInstruction) {
-                    if(src >= csr[mibound])
-                        throw Exception(mat+1);
-                    dst = src+csr[mibase];
+                    if(src < halfVAS)
+                        throw MemoryAccessException(mat+1, src);
+                    src -= halfVAS;
+                    if(src >= csr[csr_mibound])
+                        throw MemoryAccessException(mat+1, src);
+                    dst = src+csr[csr_mibase];
                 }else{
-                    if(src >= csr[mdbound])
-                        throw Exception(mat+1);
-                    dst = src+csr[mdbase];
+                    if(src >= halfVAS || src >= csr[csr_mdbound])
+                        throw MemoryAccessException(mat+1, src);
+                    dst = src+csr[csr_mdbase];
                 }
-            break;
+            } break;
             case 8: // Sv32
-                dst = translatePaged<UInt32, 12, 10, 1>(mat, src);
+                dst = translatePaged<UInt32, 12, 10, 1>(mode, mat, src);
             break;
             case 9: // Sv39
-                dst = translatePaged<UInt64, 20, 9, 2>(mat, src);
+                dst = translatePaged<UInt64, 20, 9, 2>(mode, mat, src);
             break;
             case 10: // Sv48
-                dst = translatePaged<UInt64, 11, 9, 3>(mat, src);
+                dst = translatePaged<UInt64, 11, 9, 3>(mode, mat, src);
             break;
             case 11: // Sv57
-                dst = translatePaged<UInt64, 16, 9, 4>(mat, src);
+                dst = translatePaged<UInt64, 16, 9, 4>(mode, mat, src);
             break;
             case 12: // Sv64
-                dst = translatePaged<UInt64, 15, 13, 5>(mat, src);
+                dst = translatePaged<UInt64, 15, 13, 5>(mode, mat, src);
             break;
         }
         return dst;
     }
 
-    void fetchAndExecute() {
-        UIntType address = regI[0];
-        checkAlignment(FetchInstruction, address, 4);
-        address = translate(FetchInstruction, address);
-        Instruction next(ram.getAlignedUInt32(address));
+    void execute03(const Instruction& instruction) {
+        /* I-Type
+        LB rd,rs1,imm
+        LH rd,rs1,imm
+        LW rd,rs1,imm
+        LBU rd,rs1,imm
+        LHU rd,rs1,imm
+        LWU rd,rs1,imm
+        LD rd,rs1,imm
+        */
+    }
 
+    void execute07(const Instruction& instruction) {
+        /* I-Type
+        FLW rd,rs1,imm
+        FLD rd,rs1,imm
+        */
+    }
+
+    void execute0F(const Instruction& instruction) {
+        /* I-Type
+        FENCE
+        FENCE.I
+        */
+    }
+
+    void execute13(const Instruction& instruction) {
+        /* I-Type
+        ADDI rd,rs1,imm
+        SLTI rd,rs1,imm
+        SLTIU rd,rs1,imm
+        XORI rd,rs1,imm
+        ORI rd,rs1,imm
+        ANDI rd,rs1,imm
+        SLLI rd,rs1,shamt
+        SRLI rd,rs1,shamt
+        SRAI rd,rs1,shamt
+        */
+    }
+
+    void execute17(const Instruction& instruction) {
+        /* U-Type
+        AUIPC rd,imm
+        */
+    }
+
+    void execute1B(const Instruction& instruction) {
+        /* I-Type
+        ADDIW rd,rs1,imm
+        SLLIW rd,rs1,shamt
+        SRLIW rd,rs1,shamt
+        SRAIW rd,rs1,shamt
+        */
+    }
+
+    void execute23(const Instruction& instruction) {
+        /* S-Type
+        SB rs1,rs2,imm
+        SH rs1,rs2,imm
+        SW rs1,rs2,imm
+        SD rs1,rs2,imm
+        */
+    }
+
+    void execute27(const Instruction& instruction) {
+        /* S-Type
+        FSW rs1,rs2,imm
+        FSD rs1,rs2,imm
+        */
+    }
+
+    void execute2F(const Instruction& instruction) {
+        /* U-Type
+        AUIPC rd,imm
+        */
+    }
+
+    void execute33(const Instruction& instruction) {
+        /* R-Type
+        ADD rd,rs1,rs2
+        SUB rd,rs1,rs2
+        SLL rd,rs1,rs2
+        SLT rd,rs1,rs2
+        SLTU rd,rs1,rs2
+        XOR rd,rs1,rs2
+        SRL rd,rs1,rs2
+        SRA rd,rs1,rs2
+        OR rd,rs1,rs2
+        AND rd,rs1,rs2
+        MUL rd,rs1,rs2
+        MULH rd,rs1,rs2
+        MULHSU rd,rs1,rs2
+        MULHU rd,rs1,rs2
+        DIV rd,rs1,rs2
+        DIVU rd,rs1,rs2
+        REM rd,rs1,rs2
+        REMU rd,rs1,rs2
+        */
+    }
+
+    void execute37(const Instruction& instruction) {
+        /* U-Type
+        LUI rd,imm
+        */
+    }
+
+    void execute3B(const Instruction& instruction) {
+        /* R-Type
+        ADDW rd,rs1,rs2
+        SUBW rd,rs1,rs2
+        SLLW rd,rs1,rs2
+        SRLW rd,rs1,rs2
+        SRAW rd,rs1,rs2
+        MULW rd,rs1,rs2
+        DIVW rd,rs1,rs2
+        DIVUW rd,rs1,rs2
+        REMW rd,rs1,rs2
+        REMUW rd,rs1,rs2
+        */
+    }
+
+    void execute43(const Instruction& instruction) {
+        /* R4-Type
+        FMADD.S rd,rs1,rs2,rs3
+        FMADD.D rd,rs1,rs2,rs3
+        */
+    }
+
+    void execute47(const Instruction& instruction) {
+        /* R4-Type
+        FMSUB.S rd,rs1,rs2,rs3
+        FMSUB.D rd,rs1,rs2,rs3
+        */
+    }
+
+    void execute4B(const Instruction& instruction) {
+        /* R4-Type
+        FNMSUB.S rd,rs1,rs2,rs3
+        FNMSUB.D rd,rs1,rs2,rs3
+        */
+    }
+
+    void execute4F(const Instruction& instruction) {
+        /* R4-Type
+        FNMADD.S rd,rs1,rs2,rs3
+        FNMADD.D rd,rs1,rs2,rs3
+        */
+    }
+
+    void execute53(const Instruction& instruction) {
+        /* R-Type
+        FADD.S rd,rs1,rs2
+        FSUB.S rd,rs1,rs2
+        FMUL.S rd,rs1,rs2
+        FDIV.S rd,rs1,rs2
+        FSQRT.S rd,rs1
+        FSGNJ.S rd,rs1,rs2
+        FSGNJN.S rd,rs1,rs2
+        FSGNJX.S rd,rs1,rs2
+        FMIN.S rd,rs1,rs2
+        FMAX.S rd,rs1,rs2
+        FCVT.W.S rd,rs1
+        FCVT.WU.S rd,rs1
+        FMV.X.S rd,rs1
+        FEQ.S rd,rs1,rs2
+        FLT.S rd,rs1,rs2
+        FLE.S rd,rs1,rs2
+        FCLASS.S rd,rs1
+        FCVT.S.W rd,rs1
+        FCVT.S.WU rd,rs1
+        FMV.S.X rd,rs1
+        FRCSR rd
+        FRRM rd
+        FRFLAGS rd
+        FSCSR rd,rs1
+        FSRM rd,rs1
+        FSFLAGS rd,rs1
+        FSRMI rd,imm
+        FSFLAGSI rd,imm
+        FCVT.L.S rd,rs1
+        FCVT.LU.S rd,rs1
+        FCVT.S.L rd,rs1
+        FCVT.S.LU rd,rs1
+        FADD.D rd,rs1,rs2
+        FSUB.D rd,rs1,rs2
+        FMUL.D rd,rs1,rs2
+        FDIV.D rd,rs1,rs2
+        FSQRT.D rd,rs1
+        FSGNJ.D rd,rs1,rs
+        FSGNJN.D rd,rs1,r
+        FSGNJX.D rd,rs1,r
+        FMIN.D rd,rs1,rs2
+        FMAX.D rd,rs1,rs2
+        FCVT.S.D rd,rs1
+        FCVT.D.S rd,rs1
+        FEQ.D rd,rs1,rs2
+        FLT.D rd,rs1,rs2
+        FLE.D rd,rs1,rs2
+        FCLASS.D rd,rs1
+        FCVT.W.D rd,rs1
+        FCVT.WU.D rd,rs1
+        FCVT.D.W rd,rs1
+        FCVT.D.WU rd,rs1
+        FCVT.L.D rd,rs1
+        FCVT.LU.D rd,rs1
+        FMV.X.D rd,rs1
+        FCVT.D.L rd,rs1
+        FCVT.D.LU rd,rs1
+        FMV.D.X rd,rs1
+        */
+    }
+
+    void execute63(const Instruction& instruction) {
+        /* B-Type
+        BEQ rs1,rs2,imm
+        BNE rs1,rs2,imm
+        BLT rs1,rs2,imm
+        BGE rs1,rs2,imm
+        BLTU rs1,rs2,imm
+        BGEU rs1,rs2,imm
+        */
+    }
+
+    void execute67(const Instruction& instruction) {
+        /* I-Type
+        JALR rd,rs1,imm
+        */
+    }
+
+    void execute6F(const Instruction& instruction) {
+        /* J-Type
+        JAL rd,imm
+        */
+    }
+
+    void execute73(const Instruction& instruction) {
+        /* I-Type
+        SCALL
+        SBREAK
+        RDCYCLE rd
+        RDCYCLEH rd
+        RDTIME rd
+        RDTIMEH rd
+        RDINSTRET rd
+        RDINSTRETH rd
+        CSRRW rd,csr,rs1
+        CSRRS rd,csr,rs1
+        CSRRC rd,csr,rs1
+        CSRRWI rd,csr,imm
+        CSRRSI rd,csr,imm
+        CSRRCI rd,csr,imm
+        ECALL
+        EBREAK
+        ERET
+        MRTS
+        MRTH
+        HRTS
+        WFI
+        SFENCE.VM rs1
+        */
+    }
+
+    void fetchAndExecute() {
+        UIntType pc = regI[0];
+        PrivilegeMode cpm = getBitsFrom(csr[csr_mstatus], 1, 2);
+
+        try {
+            AddressType mappedPC = translate(FetchInstruction, pc);
+            InstructionType rawInstruction;
+            memoryAccess<InstructionType, false, true>(FetchInstruction, mappedPC, &rawInstruction);
+            Instruction instruction(rawInstruction);
+            switch(instruction.opcode) {
+                case 0x03:
+                execute03(instruction);
+                break;
+        		case 0x07:
+                execute07(instruction);
+                break;
+        		case 0x0F:
+                execute0F(instruction);
+                break;
+        		case 0x13:
+                execute13(instruction);
+                break;
+                case 0x17:
+                execute17(instruction);
+                break;
+        		case 0x1B:
+                execute1B(instruction);
+                break;
+                case 0x23:
+                execute23(instruction);
+                break;
+        		case 0x27:
+                execute27(instruction);
+                break;
+                case 0x2F:
+                execute2F(instruction);
+                break;
+        		case 0x33:
+                execute33(instruction);
+                break;
+                case 0x37:
+                execute37(instruction);
+                break;
+        		case 0x3B:
+                execute3B(instruction);
+                break;
+                case 0x43:
+                execute43(instruction);
+                break;
+        		case 0x47:
+                execute47(instruction);
+                break;
+        		case 0x4B:
+                execute4B(instruction);
+                break;
+        		case 0x4F:
+                execute4F(instruction);
+                break;
+        		case 0x53:
+                execute53(instruction);
+                break;
+                case 0x63:
+                execute63(instruction);
+                break;
+        		case 0x67:
+                execute67(instruction);
+                break;
+                case 0x6F:
+                execute6F(instruction);
+                break;
+        		case 0x73:
+                execute73(instruction);
+                break;
+            }
+            return;
+        } catch(MemoryAccessException e) {
+            csr[csr_mbadaddr] = e.address;
+            csr[csr_mcause] = e.cause;
+        } catch(Exception e) {
+            csr[csr_mcause] = e.cause;
+        }
+
+        csr[csr_mepc] = pc;
+        // TODO Exception Trap
+
+        /* TODO mtdeleg, htdeleg
+        switch(cpm) {
+            case Supervisor:
+
+            break;
+            case Hypervisor:
+
+            break;
+            case Machine:
+
+            break;
+        }*/
     }
 };

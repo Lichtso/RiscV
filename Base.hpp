@@ -1,8 +1,9 @@
 #pragma once
 #include <type_traits>
+#include <functional>
 #include <typeinfo>
 #include <memory>
-#include <functional>
+#include <map>
 
 typedef unsigned char UInt8; typedef char Int8;
 typedef unsigned short UInt16; typedef short Int16;
@@ -16,3 +17,6 @@ namespace std {
 	std::integral_constant<FalseType, falseValue>>::type
 	{ };
 };
+
+typedef UInt64 AddressType;
+typedef UInt32 InstructionType;
