@@ -32,35 +32,35 @@ void writeTruncatedBitsTo(UInt32& data, UInt8 bits, UInt32 content) {
 }
 
 void decodeTypeR(Instruction& self, UInt32 data) {
-	self.rd = readBitsFrom(data, 5);
-	self.funct3 = readBitsFrom(data, 3);
-	self.rs1 = readBitsFrom(data, 5);
-	self.rs2 = readBitsFrom(data, 5);
-	self.funct7 = readBitsFrom(data, 7);
+	self.reg[0] = readBitsFrom(data, 5);
+	self.funct[0] = readBitsFrom(data, 3);
+	self.reg[1] = readBitsFrom(data, 5);
+	self.reg[2] = readBitsFrom(data, 5);
+	self.funct[1] = readBitsFrom(data, 7);
 }
 
 void decodeTypeR4(Instruction& self, UInt32 data) {
-	self.rd = readBitsFrom(data, 5);
-	self.funct3 = readBitsFrom(data, 3);
-	self.rs1 = readBitsFrom(data, 5);
-	self.rs2 = readBitsFrom(data, 5);
-	self.funct2 = readBitsFrom(data, 2);
-	self.rs3 = readBitsFrom(data, 5);
+	self.reg[0] = readBitsFrom(data, 5);
+	self.funct[0] = readBitsFrom(data, 3);
+	self.reg[1] = readBitsFrom(data, 5);
+	self.reg[2] = readBitsFrom(data, 5);
+	self.funct[1] = readBitsFrom(data, 2);
+	self.reg[3] = readBitsFrom(data, 5);
 }
 
 void decodeTypeI(Instruction& self, UInt32 data) {
-	self.rd = readBitsFrom(data, 5);
-	self.funct3 = readBitsFrom(data, 3);
-	self.rs1 = readBitsFrom(data, 5);
+	self.reg[0] = readBitsFrom(data, 5);
+	self.funct[0] = readBitsFrom(data, 3);
+	self.reg[1] = readBitsFrom(data, 5);
 	self.imm = readBitsFrom(data, 12);
 	self.imm |= LeadingBitMask(20)*data;
 }
 
 void decodeTypeS(Instruction& self, UInt32 data) {
 	self.imm = readBitsFrom(data, 5);
-	self.funct3 = readBitsFrom(data, 3);
-	self.rs1 = readBitsFrom(data, 5);
-	self.rs2 = readBitsFrom(data, 5);
+	self.funct[0] = readBitsFrom(data, 3);
+	self.reg[1] = readBitsFrom(data, 5);
+	self.reg[2] = readBitsFrom(data, 5);
 	self.imm |= readBitsFrom(data, 7)<<5;
 	self.imm |= LeadingBitMask(20)*data;
 }
@@ -72,7 +72,7 @@ void decodeTypeSB(Instruction& self, UInt32 data) {
 }
 
 void decodeTypeU(Instruction& self, UInt32 data) {
-	self.rd = readBitsFrom(data, 5);
+	self.reg[0] = readBitsFrom(data, 5);
 	self.imm = readBitsFrom(data, 20)<<12;
 }
 
@@ -89,40 +89,40 @@ void decodeTypeUndefined(Instruction& self, UInt32 data) {
 
 UInt32 encodeTypeR(const Instruction& self) {
 	UInt32 data = 0;
-	writeBitsTo(data, 7, self.funct7);
-	writeBitsTo(data, 5, self.rs2);
-	writeBitsTo(data, 5, self.rs1);
-	writeBitsTo(data, 3, self.funct3);
-	writeBitsTo(data, 5, self.rd);
+	writeBitsTo(data, 7, self.funct[1]);
+	writeBitsTo(data, 5, self.reg[2]);
+	writeBitsTo(data, 5, self.reg[1]);
+	writeBitsTo(data, 3, self.funct[0]);
+	writeBitsTo(data, 5, self.reg[0]);
 	return data;
 }
 
 UInt32 encodeTypeR4(const Instruction& self) {
 	UInt32 data = 0;
-	writeBitsTo(data, 5, self.rs3);
-	writeBitsTo(data, 2, self.funct2);
-	writeBitsTo(data, 5, self.rs2);
-	writeBitsTo(data, 5, self.rs1);
-	writeBitsTo(data, 3, self.funct3);
-	writeBitsTo(data, 5, self.rd);
+	writeBitsTo(data, 5, self.reg[3]);
+	writeBitsTo(data, 2, self.funct[1]);
+	writeBitsTo(data, 5, self.reg[2]);
+	writeBitsTo(data, 5, self.reg[1]);
+	writeBitsTo(data, 3, self.funct[0]);
+	writeBitsTo(data, 5, self.reg[0]);
 	return data;
 }
 
 UInt32 encodeTypeI(const Instruction& self) {
 	UInt32 data = 0;
 	writeTruncatedBitsTo(data, 12, self.imm);
-	writeBitsTo(data, 5, self.rs1);
-	writeBitsTo(data, 3, self.funct3);
-	writeBitsTo(data, 5, self.rd);
+	writeBitsTo(data, 5, self.reg[1]);
+	writeBitsTo(data, 3, self.funct[0]);
+	writeBitsTo(data, 5, self.reg[0]);
 	return data;
 }
 
 UInt32 encodeTypeS(const Instruction& self) {
 	UInt32 data = 0;
 	writeTruncatedBitsTo(data, 7, self.imm>>5);
-	writeBitsTo(data, 5, self.rs2);
-	writeBitsTo(data, 5, self.rs1);
-	writeBitsTo(data, 3, self.funct3);
+	writeBitsTo(data, 5, self.reg[2]);
+	writeBitsTo(data, 5, self.reg[1]);
+	writeBitsTo(data, 3, self.funct[0]);
 	writeTruncatedBitsTo(data, 5, self.imm);
 	return data;
 }
@@ -131,9 +131,9 @@ UInt32 encodeTypeSB(const Instruction& self) {
 	UInt32 data = 0, imm = self.imm;
 	imm |= imm>>11;
 	writeTruncatedBitsTo(data, 7, imm>>5);
-	writeBitsTo(data, 5, self.rs2);
-	writeBitsTo(data, 5, self.rs1);
-	writeBitsTo(data, 3, self.funct3);
+	writeBitsTo(data, 5, self.reg[2]);
+	writeBitsTo(data, 5, self.reg[1]);
+	writeBitsTo(data, 3, self.funct[0]);
 	writeTruncatedBitsTo(data, 5, imm);
 	return data;
 }
@@ -141,7 +141,7 @@ UInt32 encodeTypeSB(const Instruction& self) {
 UInt32 encodeTypeU(const Instruction& self) {
 	UInt32 data = 0;
 	writeBitsTo(data, 20, self.imm);
-	writeBitsTo(data, 5, self.rd);
+	writeBitsTo(data, 5, self.reg[0]);
 	return data;
 }
 
@@ -152,7 +152,7 @@ UInt32 encodeTypeUJ(const Instruction& self) {
 	imm |= movedBitsFromTo(imm, 10, 1, 21);
 	imm &= ~(TrailingBitMask(12));
 	writeBitsTo(data, 20, imm);
-	writeBitsTo(data, 5, self.rd);
+	writeBitsTo(data, 5, self.reg[0]);
 	return data;
 }
 

@@ -1,5 +1,7 @@
+#pragma once
 #include <type_traits>
 #include <typeinfo>
+#include <memory>
 #include <functional>
 
 typedef unsigned char UInt8; typedef char Int8;

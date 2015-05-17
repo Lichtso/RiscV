@@ -1,8 +1,9 @@
-#include "Base.hpp"
+#pragma once
+#include "Exception.hpp"
 
 class Instruction {
 	public:
-	UInt8 opcode, rd, rs1, rs2, rs3, funct2, funct3, funct7;
+	UInt8 opcode, reg[4], funct[2];
 	UInt32 imm;
 
 	enum Type {
@@ -32,6 +33,7 @@ class Instruction {
 			case 0x07:
 			case 0x0F:
 			case 0x13:
+			case 0x1B:
 			case 0x67:
 			case 0x73:
 			return I;
@@ -46,9 +48,12 @@ class Instruction {
 			case 0x6F:
 			return UJ;
 		}
-		return Undefined;
+		throw Exception(Exception::Type::IllegalInstruction);
 	}
 
 	Instruction(UInt32 data);
 	UInt32 encode() const;
 };
+
+UInt32 TrailingBitMask(UInt8 bits);
+UInt32 LeadingBitMask(UInt8 bits);
