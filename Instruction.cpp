@@ -2,10 +2,7 @@
 
 UInt64 TrailingBitMask(UInt8 len) {
 	return 0xFFFFFFFFFFFFFFFFULL>>(64-len);
-}
-
-UInt64 LeadingBitMask(UInt8 len) {
-	return 0xFFFFFFFFFFFFFFFFULL<<(64-len);
+	// return ~(0xFFFFFFFFFFFFFFFFULL<<len);
 }
 
 UInt64 getBitsFrom(UInt64 data, UInt8 at, UInt8 len) {
@@ -57,7 +54,7 @@ void decodeTypeI(Instruction& self, InstructionType data) {
 	self.funct[0] = readBitsFrom(data, 3);
 	self.reg[1] = readBitsFrom(data, 5);
 	self.imm = readBitsFrom(data, 12);
-	self.imm |= LeadingBitMask(20)*data;
+	self.imm |= data*~TrailingBitMask(20);
 }
 
 void decodeTypeS(Instruction& self, InstructionType data) {
@@ -66,7 +63,7 @@ void decodeTypeS(Instruction& self, InstructionType data) {
 	self.reg[1] = readBitsFrom(data, 5);
 	self.reg[2] = readBitsFrom(data, 5);
 	self.imm |= readBitsFrom(data, 7)<<5;
-	self.imm |= LeadingBitMask(20)*data;
+	self.imm |= data*~TrailingBitMask(20);
 }
 
 void decodeTypeSB(Instruction& self, InstructionType data) {
@@ -84,7 +81,7 @@ void decodeTypeUJ(Instruction& self, InstructionType data) {
 	decodeTypeU(self, data);
 	self.imm |= movedBitsFromTo(self.imm, 1, 20, 11);
 	self.imm |= movedBitsFromTo(self.imm, 10, 21, 1);
-	self.imm = (self.imm&TrailingBitMask(20))|(LeadingBitMask(20)*(self.imm>>31));
+	self.imm = (self.imm&TrailingBitMask(20))|((self.imm>>31)*~TrailingBitMask(20));
 }
 
 void decodeTypeUndefined(Instruction& self, InstructionType data) {
@@ -144,7 +141,7 @@ InstructionType encodeTypeSB(const Instruction& self) {
 
 InstructionType encodeTypeU(const Instruction& self) {
 	InstructionType data = 0;
-	writeBitsTo(data, 20, self.imm);
+	writeBitsTo(data, 20, self.imm>>12);
 	writeBitsTo(data, 5, self.reg[0]);
 	return data;
 }
@@ -154,8 +151,8 @@ InstructionType encodeTypeUJ(const Instruction& self) {
 	imm &= ~(TrailingBitMask(11)<<20);
 	imm |= movedBitsFromTo(imm, 1, 11, 20);
 	imm |= movedBitsFromTo(imm, 10, 1, 21);
-	imm &= ~(TrailingBitMask(12));
-	writeBitsTo(data, 20, imm);
+	//imm &= ~(TrailingBitMask(12));
+	writeBitsTo(data, 20, imm>>12);
 	writeBitsTo(data, 5, self.reg[0]);
 	return data;
 }

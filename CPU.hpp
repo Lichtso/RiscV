@@ -162,7 +162,7 @@ class CPU {
         return dst;
     }
 
-    void execute03(const Instruction& instruction) {
+    void executeOpcode03(const Instruction& instruction) {
         /* I-Type
         LB rd,rs1,imm
         LH rd,rs1,imm
@@ -174,21 +174,21 @@ class CPU {
         */
     }
 
-    void execute07(const Instruction& instruction) {
+    void executeOpcode07(const Instruction& instruction) {
         /* I-Type
         FLW rd,rs1,imm
         FLD rd,rs1,imm
         */
     }
 
-    void execute0F(const Instruction& instruction) {
+    void executeOpcode0F(const Instruction& instruction) {
         /* I-Type
         FENCE
         FENCE.I
         */
     }
 
-    void execute13(const Instruction& instruction) {
+    void executeOpcode13(const Instruction& instruction) {
         /* I-Type
         ADDI rd,rs1,imm
         SLTI rd,rs1,imm
@@ -202,13 +202,13 @@ class CPU {
         */
     }
 
-    void execute17(const Instruction& instruction) {
+    void executeOpcode17(const Instruction& instruction) {
         /* U-Type
         AUIPC rd,imm
         */
     }
 
-    void execute1B(const Instruction& instruction) {
+    void executeOpcode1B(const Instruction& instruction) {
         /* I-Type
         ADDIW rd,rs1,imm
         SLLIW rd,rs1,shamt
@@ -217,7 +217,7 @@ class CPU {
         */
     }
 
-    void execute23(const Instruction& instruction) {
+    void executeOpcode23(const Instruction& instruction) {
         /* S-Type
         SB rs1,rs2,imm
         SH rs1,rs2,imm
@@ -226,20 +226,41 @@ class CPU {
         */
     }
 
-    void execute27(const Instruction& instruction) {
+    void executeOpcode27(const Instruction& instruction) {
         /* S-Type
         FSW rs1,rs2,imm
         FSD rs1,rs2,imm
         */
     }
 
-    void execute2F(const Instruction& instruction) {
+    void executeOpcode2F(const Instruction& instruction) {
         /* U-Type
-        AUIPC rd,imm
+        LR.W rd,rs1
+        SC.W rd,rs1,rs2
+        AMOSWAP.W rd,rs1,rs2
+        AMOADD.W rd,rs1,rs2
+        AMOXOR.W rd,rs1,rs2
+        AMOAND.W rd,rs1,rs2
+        AMOOR.W rd,rs1,rs2
+        AMOMIN.W rd,rs1,rs2
+        AMOMAX.W rd,rs1,rs2
+        AMOMINU.W rd,rs1,rs2
+        AMOMAXU.W rd,rs1,rs2
+        LR.D rd,rs1
+        SC.D rd,rs1,rs2
+        AMOSWAP.D rd,rs1,rs2
+        AMOADD.D rd,rs1,rs2
+        AMOXOR.D rd,rs1,rs2
+        AMOAND.D rd,rs1,rs2
+        AMOOR.D rd,rs1,rs2
+        AMOMIN.D rd,rs1,rs2
+        AMOMAX.D rd,rs1,rs2
+        AMOMINU.D rd,rs1,rs2
+        AMOMAXU.D rd,rs1,rs2
         */
     }
 
-    void execute33(const Instruction& instruction) {
+    void executeOpcode33(const Instruction& instruction) {
         /* R-Type
         ADD rd,rs1,rs2
         SUB rd,rs1,rs2
@@ -262,13 +283,13 @@ class CPU {
         */
     }
 
-    void execute37(const Instruction& instruction) {
+    void executeOpcode37(const Instruction& instruction) {
         /* U-Type
         LUI rd,imm
         */
     }
 
-    void execute3B(const Instruction& instruction) {
+    void executeOpcode3B(const Instruction& instruction) {
         /* R-Type
         ADDW rd,rs1,rs2
         SUBW rd,rs1,rs2
@@ -283,35 +304,35 @@ class CPU {
         */
     }
 
-    void execute43(const Instruction& instruction) {
+    void executeOpcode43(const Instruction& instruction) {
         /* R4-Type
         FMADD.S rd,rs1,rs2,rs3
         FMADD.D rd,rs1,rs2,rs3
         */
     }
 
-    void execute47(const Instruction& instruction) {
+    void executeOpcode47(const Instruction& instruction) {
         /* R4-Type
         FMSUB.S rd,rs1,rs2,rs3
         FMSUB.D rd,rs1,rs2,rs3
         */
     }
 
-    void execute4B(const Instruction& instruction) {
+    void executeOpcode4B(const Instruction& instruction) {
         /* R4-Type
         FNMSUB.S rd,rs1,rs2,rs3
         FNMSUB.D rd,rs1,rs2,rs3
         */
     }
 
-    void execute4F(const Instruction& instruction) {
+    void executeOpcode4F(const Instruction& instruction) {
         /* R4-Type
         FNMADD.S rd,rs1,rs2,rs3
         FNMADD.D rd,rs1,rs2,rs3
         */
     }
 
-    void execute53(const Instruction& instruction) {
+    void executeOpcode53(const Instruction& instruction) {
         /* R-Type
         FADD.S rd,rs1,rs2
         FSUB.S rd,rs1,rs2
@@ -374,7 +395,7 @@ class CPU {
         */
     }
 
-    void execute63(const Instruction& instruction) {
+    void executeOpcode63(const Instruction& instruction) {
         /* B-Type
         BEQ rs1,rs2,imm
         BNE rs1,rs2,imm
@@ -385,19 +406,19 @@ class CPU {
         */
     }
 
-    void execute67(const Instruction& instruction) {
+    void executeOpcode67(const Instruction& instruction) {
         /* I-Type
         JALR rd,rs1,imm
         */
     }
 
-    void execute6F(const Instruction& instruction) {
+    void executeOpcode6F(const Instruction& instruction) {
         /* J-Type
         JAL rd,imm
         */
     }
 
-    void execute73(const Instruction& instruction) {
+    void executeOpcode73(const Instruction& instruction) {
         /* I-Type
         SCALL
         SBREAK
@@ -435,67 +456,67 @@ class CPU {
             Instruction instruction(rawInstruction);
             switch(instruction.opcode) {
                 case 0x03:
-                execute03(instruction);
+                executeOpcode03(instruction);
                 break;
         		case 0x07:
-                execute07(instruction);
+                executeOpcode07(instruction);
                 break;
         		case 0x0F:
-                execute0F(instruction);
+                executeOpcode0F(instruction);
                 break;
         		case 0x13:
-                execute13(instruction);
+                executeOpcode13(instruction);
                 break;
                 case 0x17:
-                execute17(instruction);
+                executeOpcode17(instruction);
                 break;
         		case 0x1B:
-                execute1B(instruction);
+                executeOpcode1B(instruction);
                 break;
                 case 0x23:
-                execute23(instruction);
+                executeOpcode23(instruction);
                 break;
         		case 0x27:
-                execute27(instruction);
+                executeOpcode27(instruction);
                 break;
                 case 0x2F:
-                execute2F(instruction);
+                executeOpcode2F(instruction);
                 break;
         		case 0x33:
-                execute33(instruction);
+                executeOpcode33(instruction);
                 break;
                 case 0x37:
-                execute37(instruction);
+                executeOpcode37(instruction);
                 break;
         		case 0x3B:
-                execute3B(instruction);
+                executeOpcode3B(instruction);
                 break;
                 case 0x43:
-                execute43(instruction);
+                executeOpcode43(instruction);
                 break;
         		case 0x47:
-                execute47(instruction);
+                executeOpcode47(instruction);
                 break;
         		case 0x4B:
-                execute4B(instruction);
+                executeOpcode4B(instruction);
                 break;
         		case 0x4F:
-                execute4F(instruction);
+                executeOpcode4F(instruction);
                 break;
         		case 0x53:
-                execute53(instruction);
+                executeOpcode53(instruction);
                 break;
                 case 0x63:
-                execute63(instruction);
+                executeOpcode63(instruction);
                 break;
         		case 0x67:
-                execute67(instruction);
+                executeOpcode67(instruction);
                 break;
                 case 0x6F:
-                execute6F(instruction);
+                executeOpcode6F(instruction);
                 break;
         		case 0x73:
-                execute73(instruction);
+                executeOpcode73(instruction);
                 break;
             }
             return;

@@ -1,5 +1,5 @@
 #pragma once
-#include "Instruction.hpp"
+#include "Disassembler.hpp"
 
 class RAM {
     public:
