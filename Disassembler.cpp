@@ -24,18 +24,8 @@ const char* typesOfOpcode3X_0[] = {
 	"ADD", "SUB"
 };
 
-const char* typesOfOpcode3X_0[] = {
+const char* typesOfOpcode3X_5[] = {
 	"SRL", "SRA"
-};
-
-const char* typesOfOpcode63[] = {
-	"BEQ", "BNE", NULL, NULL,
-	"BLT", "BGE", "BLTU", "BGEU"
-};
-
-const char* typesOfOpcode73[] = {
-	NULL, "CSRRW", "CSRRS", "CSRRC",
-	NULL, "CSRRWI", "CSRRSI", "CSRRCI"
 };
 
 const char* typesOfOpcode53_10[] = {
@@ -56,6 +46,20 @@ const char* typesOfOpcode53_CVT[] = {
 
 const char* typesOfOpcode53_70[] = {
 	"FMV.X", "FCLASS"
+};
+
+const char* typesOfOpcode63[] = {
+	"BEQ", "BNE", NULL, NULL,
+	"BLT", "BGE", "BLTU", "BGEU"
+};
+
+const char* typesOfOpcode73[] = {
+	NULL, "CSRRW", "CSRRS", "CSRRC",
+	NULL, "CSRRWI", "CSRRSI", "CSRRCI"
+};
+
+const char* typesOfOpcode73_2[] = {
+	NULL, "FLAGS", "RM", "CSR"
 };
 
 
@@ -93,6 +97,15 @@ void disassembleOpcode13(Disassembler& self, const Instruction& instruction) {
 	UInt32 imm = instruction.imm;
 	switch(instruction.funct[0]) {
 		case 0:
+		if(imm == 0) {
+			if(self.flags&Disassembler::FlagNop && instruction.reg[0] == 0) {
+				type = "NOP";
+				break;
+			}else if(self.flags&Disassembler::FlagMove) {
+				sprintf(self.buffer, "MV x%d, x%d", instruction.reg[0], instruction.reg[1]);
+				return;
+			}
+		}
 		type = "ADDI";
 		break;
 		case 1:
@@ -122,12 +135,12 @@ void disassembleOpcode13(Disassembler& self, const Instruction& instruction) {
 		type = "ANDI";
 		break;
 	}
-	sprintf(self.buffer, "%s x%d, x%d, %lx", type, instruction.reg[0], instruction.reg[1], imm);
+	sprintf(self.buffer, "%s x%d, x%d, 0x%lx", type, instruction.reg[0], instruction.reg[1], imm);
 }
 
 void disassembleOpcode17(Disassembler& self, const Instruction& instruction) {
-	AddressType dst = self.addJumpMark(self.currentPosition+static_cast<Int32>(instruction.imm));
-	sprintf(self.buffer, "AUIPC x%d, jm_%llx", instruction.reg[0], dst);
+	sprintf(self.buffer, "AUIPC x%d, ", instruction.reg[0]);
+	self.addJumpMark(self.currentPosition+static_cast<Int32>(instruction.imm));
 }
 
 void disassembleOpcode1B(Disassembler& self, const Instruction& instruction) {
@@ -149,14 +162,13 @@ void disassembleOpcode1B(Disassembler& self, const Instruction& instruction) {
 		}
 		break;
 		default:
-		type = NULL;
-		break;
+		throw Exception(Exception::Code::IllegalInstruction);
 	}
-	sprintf(self.buffer, "%s x%d, x%d, %lx", type, instruction.reg[0], instruction.reg[1], imm);
+	sprintf(self.buffer, "%s x%d, x%d, 0x%lx", type, instruction.reg[0], instruction.reg[1], imm);
 }
 
 void disassembleOpcode23(Disassembler& self, const Instruction& instruction) {
-	sprintf(self.buffer, "%s x%d, x%d, %lx", typesOfOpcode23[instruction.funct[0]], instruction.reg[1], instruction.reg[2], instruction.imm);
+	sprintf(self.buffer, "%s x%d, x%d, 0x%lx", typesOfOpcode23[instruction.funct[0]], instruction.reg[1], instruction.reg[2], instruction.imm);
 }
 
 void disassembleOpcode27(Disassembler& self, const Instruction& instruction) {
@@ -260,8 +272,7 @@ void disassembleOpcode3B(Disassembler& self, const Instruction& instruction) {
 			type = typesOfOpcode3X_0[instruction.funct[1]];
 			break;
 			default:
-			type = NULL;
-			break;
+			throw Exception(Exception::Code::IllegalInstruction);
 		}
 	sprintf(self.buffer, "%sW x%d, x%d, x%d", type, instruction.reg[0], instruction.reg[1], instruction.reg[2]);
 }
@@ -334,8 +345,8 @@ void disassembleOpcode53(Disassembler& self, const Instruction& instruction) {
 }
 
 void disassembleOpcode63(Disassembler& self, const Instruction& instruction) {
-	AddressType dst = self.addJumpMark(self.currentPosition+static_cast<Int32>(instruction.imm)*2);
-	sprintf(self.buffer, "%s x%d, x%d, jm_%llx", typesOfOpcode63[instruction.funct[0]], instruction.reg[1], instruction.reg[2], dst);
+	sprintf(self.buffer, "%s x%d, x%d, ", typesOfOpcode63[instruction.funct[0]], instruction.reg[1], instruction.reg[2]);
+	self.addJumpMark(self.currentPosition+static_cast<Int32>(instruction.imm)*2);
 }
 
 void disassembleOpcode67(Disassembler& self, const Instruction& instruction) {
@@ -344,47 +355,102 @@ void disassembleOpcode67(Disassembler& self, const Instruction& instruction) {
 }
 
 void disassembleOpcode6F(Disassembler& self, const Instruction& instruction) {
-	AddressType dst = self.addJumpMark(self.currentPosition+static_cast<Int32>(instruction.imm)*2);
-	if(instruction.reg[0])
-		sprintf(self.buffer, "JAL x%d, jm_%llx", instruction.reg[0], dst);
+	if(self.flags&Disassembler::FlagJump && instruction.reg[0] == 0)
+		sprintf(self.buffer, "J ");
 	else
-		sprintf(self.buffer, "J jm_%llx", dst);
+		sprintf(self.buffer, "JAL x%d, ", instruction.reg[0]);
+	self.addJumpMark(self.currentPosition+static_cast<Int32>(instruction.imm)*2);
 }
 
 void disassembleOpcode73(Disassembler& self, const Instruction& instruction) {
+	const char* type;
 	if(instruction.funct[0] == 0) {
 		switch(instruction.imm) {
 			case 0x0000:
-			sprintf(self.buffer, "ECALL");
+			type = "ECALL";
 			break;
 			case 0x0001:
-			sprintf(self.buffer, "EBREAK");
+			type = "EBREAK";
 			break;
 			case 0x0100:
-			sprintf(self.buffer, "ERET");
+			type = "ERET";
 			break;
 			case 0x0101:
 			sprintf(self.buffer, "SFENCE.VM x%d", instruction.reg[1]);
-			break;
+			return;
 			case 0x0102:
-			sprintf(self.buffer, "WFI");
+			type = "WFI";
 			break;
 			case 0x0205:
-			sprintf(self.buffer, "HRTS");
+			type = "HRTS";
 			break;
 			case 0x0305:
-			sprintf(self.buffer, "MRTS");
+			type = "MRTS";
 			break;
 			case 0x0306:
-			sprintf(self.buffer, "MRTH");
+			type = "MRTH";
 			break;
+			default:
+			throw Exception(Exception::Code::IllegalInstruction);
 		}
+		strcpy(self.buffer, type);
 	}else{
-		const char* type = typesOfOpcode73[instruction.funct[0]];
-		if((instruction.funct[0]&4) == 0)
-			sprintf(self.buffer, "%s x%d, %lx, x%d", type, instruction.reg[0], instruction.imm, instruction.reg[1]);
+		if(self.flags&Disassembler::FlagCSR) {
+			switch(instruction.funct[0]) {
+				case 1:
+					if(instruction.imm == 0 || instruction.imm > 3)
+						break;
+					sprintf(self.buffer, "FS%s x%d, x%d", typesOfOpcode73_2[instruction.imm], instruction.reg[0], instruction.reg[1]);
+				return;
+				case 2: {
+					type = NULL;
+					switch(instruction.imm) {
+						case 0x0001:
+						type = "FRFLAGS";
+						break;
+						case 0x0002:
+						type = "FRRM";
+						break;
+						case 0x0003:
+						type = "FRCSR";
+						break;
+						case 0x0C00:
+						type = "RDCYCLE";
+						break;
+						case 0x0C80:
+						type = "RDCYCLEH";
+						break;
+						case 0x0C01:
+						type = "RDTIME";
+						break;
+						case 0x0C81:
+						type = "RDTIMEH";
+						break;
+						case 0x0C02:
+						type = "RDINSTRET";
+						break;
+						case 0x0C82:
+						type = "RDINSTRETH";
+						break;
+					}
+					if(type) {
+						sprintf(self.buffer, "%s x%d", type, instruction.reg[0]);
+						return;
+					}
+				} break;
+				break;
+				case 5:
+					if(instruction.imm == 0 || instruction.imm > 2)
+						break;
+					sprintf(self.buffer, "FS%sI x%d, x%d", typesOfOpcode73_2[instruction.imm], instruction.reg[0], instruction.reg[1]);
+				break;
+			}
+		}
+		type = typesOfOpcode73[instruction.funct[0]];
+		if((instruction.funct[0]&TrailingBitMask(3)) == 0)
+			sprintf(self.buffer, "%s x%d, 0x%lx, x%d", type, instruction.reg[0], instruction.imm, instruction.reg[1]);
 		else
-			sprintf(self.buffer, "%s x%d, %lx, 0x%hhx", type, instruction.reg[0], instruction.imm, instruction.reg[1]);
+			sprintf(self.buffer, "%s x%d, 0x%lx, 0x%hhx", type, instruction.reg[0], instruction.imm, instruction.reg[1]);
 	}
 
 	// TODO: What about SCALL, SBREAK
