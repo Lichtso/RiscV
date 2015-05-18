@@ -3,6 +3,7 @@
 
 class Disassembler {
 	public:
+	char buffer[64];
 	AddressType currentPosition;
 	std::vector<std::string> textSection;
 	std::map<AddressType, UInt64> jumpMarks;
