@@ -30,7 +30,14 @@ class Disassembler {
 	}
 
 	void addInstruction(const Instruction& instruction, AddressType address);
-	void addSection(const UInt8* base, AddressType address, AddressType size);
+	void addFunction(const UInt8* base, const std::string& name, AddressType address, AddressType size);
 	void serializeTextSection(std::ostream& stream);
-	void writeToFile(const std::string& path);
+	bool writeToFile(const std::string& path);
+	bool readFromFile(const std::string& path);
+};
+
+class Assembler {
+	public:
+	bool writeToFile(const std::string& path);
+	bool readFromFile(const std::string& path);
 };

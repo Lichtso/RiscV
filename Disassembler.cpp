@@ -1,8 +1,15 @@
 #include "Disassembler.hpp"
+#include <elfio/elfio.hpp>
+
+const UInt8 ELF_machine = 243;
 
 const char* typesOfOpcode03[] = {
 	"LB", "LH", "LW", "LD",
 	"LBU", "LHU", "LWU", NULL
+};
+
+const char* typesOfOpcode0F[] = {
+	"W", "R", "O", "I"
 };
 
 const char* typesOfOpcode23[] = {
@@ -14,6 +21,10 @@ const char* typesOfOpcode2F[] = {
 	NULL, NULL, ".W", ".D"
 };
 
+const char* typesOfOpcode2F_2[] = {
+	".RL", ".AQ"
+};
+
 const char* typesOfOpcode27[] = {
 	"FSW", "FSD"
 };
@@ -21,11 +32,6 @@ const char* typesOfOpcode27[] = {
 const char* typesOfOpcode33[] = {
 	"MUL", "MULH", "MULHSU", "MULHU",
 	"DIV", "DIVU", "REM", "REMU"
-};
-
-const char* typesOfOpcode3B[] = {
-	"MULW", "DIVW", NULL, NULL,
-	NULL, "DIVUW", "REMW", "REMUW"
 };
 
 const char* typesOfOpcode3X_0[] = {
@@ -140,10 +146,9 @@ void printRoundingMode(Disassembler& self, const Instruction& instruction) {
 }
 
 void printAtomicMode(Disassembler& self, const Instruction& instruction) {
-	if(instruction.funct[0]&1)
-		strcat(self.buffer, ".AQ");
-	if(instruction.funct[0]&2)
-		strcat(self.buffer, ".RL");
+	for(UInt8 i = 0; i < 2; ++i)
+		if((instruction.funct[0]>>i)&1)
+			strcat(self.buffer, typesOfOpcode2F_2[0]);
 }
 
 void print_x_x(Disassembler& self, const Instruction& instruction, UInt8 index = 0) {
@@ -183,11 +188,18 @@ void disassembleOpcode07(Disassembler& self, const Instruction& instruction) {
 void disassembleOpcode0F(Disassembler& self, const Instruction& instruction) {
 	if(instruction.funct[0] == 0) {
 		strcpy(self.buffer, "FENCE");
-		printUInt32(self, instruction.imm);
+		if(instruction.imm < 0xFF) {
+			strcat(self.buffer, " ");
+			for(UInt8 i = 0; i < 4; ++i)
+				if((instruction.imm>>(i+4))&1)
+					strcat(self.buffer, typesOfOpcode0F[i]);
+			strcat(self.buffer, ", ");
+			for(UInt8 i = 0; i < 4; ++i)
+				if((instruction.imm>>i)&1)
+					strcat(self.buffer, typesOfOpcode0F[i]);
+		}
 	}else
 		strcpy(self.buffer, "FENCE.I");
-
-	// TODO: What about pred, succ in imm
 }
 
 void disassembleOpcode13(Disassembler& self, const Instruction& instruction) {
@@ -197,7 +209,7 @@ void disassembleOpcode13(Disassembler& self, const Instruction& instruction) {
 		if(imm == 0) {
 			if(self.flags&Disassembler::FlagNop && instruction.reg[0] == 0) {
 				strcpy(self.buffer, "NOP");
-				break;
+				return;
 			}else if(self.flags&Disassembler::FlagMove) {
 				strcpy(self.buffer, "MV");
 				print_x_x(self, instruction);
@@ -361,9 +373,10 @@ void disassembleOpcode37(Disassembler& self, const Instruction& instruction) {
 }
 
 void disassembleOpcode3B(Disassembler& self, const Instruction& instruction) {
-	if(instruction.funct[1] == 1)
-		strcpy(self.buffer, typesOfOpcode3B[instruction.funct[0]]);
-	else
+	if(instruction.funct[1] == 1) {
+		strcpy(self.buffer, typesOfOpcode33[instruction.funct[0]]);
+		strcat(self.buffer, "W");
+	}else
 		switch(instruction.funct[0]) {
 			case 0:
 			strcpy(self.buffer, typesOfOpcode3X_0[instruction.funct[1]]);
@@ -685,16 +698,17 @@ void Disassembler::addInstruction(const Instruction& instruction, AddressType ad
 	textSection.insert(std::pair<AddressType, std::string>(address, buffer));
 }
 
-void Disassembler::addSection(const UInt8* base, AddressType address, AddressType size) {
+void Disassembler::addFunction(const UInt8* base, const std::string& name, AddressType address, AddressType size) {
 	if(!base) return;
-	try {
-		for(AddressType i = 0; i < size; i += sizeof(InstructionType)) {
-			Instruction instruction(*reinterpret_cast<const InstructionType*>(base+i));
-			addInstruction(instruction, address+i);
+	Instruction instruction;
+	jumpMarks.insert(std::pair<AddressType, std::string>(address, name));
+	for(AddressType i = 0; i < size; i += sizeof(InstructionType)) {
+		try {
+			instruction.decode32(*reinterpret_cast<const InstructionType*>(base+i));
+		}catch(Exception e) {
+			instruction.decode32(0x00000013);
 		}
-	}catch(Exception e) {
-		// TODO
-		printf("Error in section %llx\n", address);
+		addInstruction(instruction, address+i);
 	}
 }
 
@@ -707,11 +721,117 @@ void Disassembler::serializeTextSection(std::ostream& stream) {
 	}
 }
 
-void Disassembler::writeToFile(const std::string& path) {
-	std::ofstream outFile(path);
-	outFile << ".text\n";
-	serializeTextSection(outFile);
-	for(auto& i : jumpMarks)
-		outFile << "\t" << std::hex << i.first << " : " << i.second << "\n";
-	outFile.close();
+bool Disassembler::writeToFile(const std::string& path) {
+	std::ofstream file(path);
+	if(!file.is_open())
+		return false;
+
+	file << ".text\n";
+	serializeTextSection(file);
+	file.close();
+	return true;
+}
+
+const UInt8* segmentsTranslate(ELFIO::elfio& reader, AddressType address) {
+	ELFIO::Elf_Half seg_num = reader.segments.size();
+	for(size_t i = 0; i < seg_num; ++i) {
+		const ELFIO::segment* pseg = reader.segments[i];
+		if(address < pseg->get_virtual_address()) continue;
+		AddressType ptr = address-pseg->get_virtual_address();
+		if(ptr < pseg->get_memory_size())
+			return reinterpret_cast<const UInt8*>(pseg->get_data()+ptr);
+	}
+	return NULL;
+}
+
+bool Disassembler::readFromFile(const std::string& path) {
+	ELFIO::elfio reader;
+	if(!reader.load(path))
+        return false;
+
+	if(reader.get_encoding() != ELFDATA2LSB || reader.get_machine() != ELF_machine)
+		return false;
+
+	std::cout << "ELF file class    : ";
+	if(reader.get_class() == ELFCLASS32)
+	    std::cout << "ELF32" << std::endl;
+	else
+	    std::cout << "ELF64" << std::endl;
+
+	ELFIO::Elf_Half seg_num = reader.segments.size();
+	std::cout << "Number of segments: " << seg_num << std::endl;
+	for(size_t i = 0; i < seg_num; ++i) {
+		const ELFIO::segment* pseg = reader.segments[i];
+		std::cout << "  [" << i << "] 0x" << std::hex
+				<< pseg->get_flags()
+				<< " 0x"
+				<< pseg->get_virtual_address()
+				<< " 0x"
+				<< pseg->get_file_size()
+				<< " 0x"
+				<< pseg->get_memory_size()
+				<< std::endl;
+	}
+
+	std::string name;
+	ELFIO::Elf64_Addr value;
+	ELFIO::Elf_Xword size;
+	unsigned char bind;
+	unsigned char type;
+	ELFIO::Elf_Half section_index;
+	unsigned char other;
+
+	ELFIO::Elf_Half textSecIndex = 0, sec_num = reader.sections.size();
+	std::cout << "Number of sections: " << sec_num << std::endl;
+	for(size_t i = 0; i < sec_num; ++i) {
+		ELFIO::section* psec = reader.sections[i];
+	    std::cout << "  [" << i << "] "
+	              << psec->get_name()
+	              << "\t"
+				  << psec->get_type()
+				  << "\t"
+	              << psec->get_size()
+	              << std::endl;
+
+		if(reader.sections[i]->get_name() == ".text")
+			textSecIndex = i;
+
+	    if(psec->get_type() == SHT_SYMTAB) {
+	        const ELFIO::symbol_section_accessor symbols(reader, psec);
+			auto sym_num = symbols.get_symbols_num();
+			for(unsigned int j = 0; j < sym_num; ++j) {
+	            symbols.get_symbol(j, name, value, size, bind, type, section_index, other);
+				if(size == 0 || name.size() == 0 || section_index != textSecIndex) continue;
+
+				addFunction(segmentsTranslate(reader, value), name, value, size);
+	        }
+	    }
+	}
+
+	return true;
+}
+
+
+
+bool Assembler::writeToFile(const std::string& path) {
+	return false;
+}
+
+bool Assembler::readFromFile(const std::string& path) {
+	std::ifstream file(path);
+	if(!file.is_open())
+		return false;
+
+	for(std::string line; getline(file, line); ) {
+		trim(line);
+
+		auto colon = line.find(':');
+		if(colon != std::string::npos) {
+			std::string jumpMark = line.substr(0, colon);
+
+		}
+	}
+	file.close();
+
+	return true;
 }

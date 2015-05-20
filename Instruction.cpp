@@ -183,12 +183,12 @@ static std::function<InstructionType(const Instruction&)> encodeType[] = {
 	encodeTypeUndefined
 };
 
-Instruction::Instruction(InstructionType data) {
+void Instruction::decode32(InstructionType data) {
 	opcode = readBitsFrom(data, 7);
 	decodeType[getType()](*this, data);
 }
 
-InstructionType Instruction::encode() const {
+InstructionType Instruction::encode32() const {
 	InstructionType data = encodeType[getType()](*this);
 	writeBitsTo(data, 7, opcode);
 	return data;

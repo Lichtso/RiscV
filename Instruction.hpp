@@ -17,8 +17,8 @@ class Instruction {
 		Undefined
 	};
 
-	Instruction(UInt32 data);
-	UInt32 encode() const;
+	void decode32(UInt32 data);
+	UInt32 encode32() const;
 	Type getType() const;
 };
 

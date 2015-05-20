@@ -453,7 +453,8 @@ class CPU {
             AddressType mappedPC = translate(FetchInstruction, pc);
             InstructionType rawInstruction;
             memoryAccess<InstructionType, false, true>(FetchInstruction, mappedPC, &rawInstruction);
-            Instruction instruction(rawInstruction);
+            Instruction instruction;
+            instruction.decode32(rawInstruction);
             switch(instruction.opcode) {
                 case 0x03:
                 executeOpcode03(instruction);
