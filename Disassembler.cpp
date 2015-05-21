@@ -695,7 +695,7 @@ void Disassembler::addInstruction(const Instruction& instruction, AddressType ad
 	}
 	if(flags&Disassembler::FlagLowerCase)
 		std::transform(buffer, buffer+strlen(buffer), buffer, ::tolower);
-	textSection.insert(std::pair<AddressType, std::string>(address, buffer));
+	instructions.insert(std::pair<AddressType, std::string>(address, buffer));
 }
 
 void Disassembler::addFunction(const UInt8* base, const std::string& name, AddressType address, AddressType size) {
@@ -705,19 +705,11 @@ void Disassembler::addFunction(const UInt8* base, const std::string& name, Addre
 	for(AddressType i = 0; i < size; i += sizeof(InstructionType)) {
 		try {
 			instruction.decode32(*reinterpret_cast<const InstructionType*>(base+i));
+			addInstruction(instruction, address+i);
 		}catch(Exception e) {
 			instruction.decode32(0x00000013);
+			addInstruction(instruction, address+i);
 		}
-		addInstruction(instruction, address+i);
-	}
-}
-
-void Disassembler::serializeTextSection(std::ostream& stream) {
-	for(auto& i : textSection) {
-		auto jm = jumpMarks.find(i.first);
-		if(jm != jumpMarks.end())
-			stream << jm->second << ":\n";
-		stream << "\t" << std::hex << i.first << " : " << i.second << "\n";
 	}
 }
 
@@ -727,7 +719,12 @@ bool Disassembler::writeToFile(const std::string& path) {
 		return false;
 
 	file << ".text\n";
-	serializeTextSection(file);
+	for(auto& i : instructions) {
+		auto jm = jumpMarks.find(i.first);
+		if(jm != jumpMarks.end())
+			file << std::hex << i.first << " " << jm->second << ":\n";
+		file << "\t" << std::hex << i.first << " : " << i.second << "\n";
+	}
 	file.close();
 	return true;
 }
@@ -813,7 +810,15 @@ bool Disassembler::readFromFile(const std::string& path) {
 
 
 
+void Assembler::addInstruction(const std::string& str, AddressType& address) {
+	Instruction instruction;
+	// TODO
+	instructions.insert(std::pair<AddressType, UInt32>(address, instruction.encode32()));
+	address += 4;
+}
+
 bool Assembler::writeToFile(const std::string& path) {
+	// TODO
 	return false;
 }
 
@@ -822,14 +827,19 @@ bool Assembler::readFromFile(const std::string& path) {
 	if(!file.is_open())
 		return false;
 
+	AddressType address = 0;
 	for(std::string line; getline(file, line); ) {
 		trim(line);
 
 		auto colon = line.find(':');
 		if(colon != std::string::npos) {
 			std::string jumpMark = line.substr(0, colon);
-
+			jumpMarks.insert(std::pair<AddressType, std::string>(address, jumpMark));
+			line = line.substr(colon+1);
 		}
+
+		if(line.size() == 0) continue;
+		addInstruction(line, address);
 	}
 	file.close();
 
