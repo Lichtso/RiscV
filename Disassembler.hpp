@@ -40,7 +40,7 @@ class Assembler {
 	std::map<AddressType, UInt32> instructions;
 	std::map<AddressType, std::string> jumpMarks;
 
-	void addInstruction(const std::string& instruction, AddressType& address);
+	void addInstruction(std::string command, AddressType& address);
 	bool writeToFile(const std::string& path);
 	bool readFromFile(const std::string& path);
 };

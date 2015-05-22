@@ -810,7 +810,26 @@ bool Disassembler::readFromFile(const std::string& path) {
 
 
 
-void Assembler::addInstruction(const std::string& str, AddressType& address) {
+void Assembler::addInstruction(std::string command, AddressType& address) {
+	auto seperator = command.find(' ');
+	std::string arguments, token;
+	std::vector<std::string> commandParts, agruments;
+
+	if(seperator != std::string::npos) {
+		arguments = command.substr(seperator+1);
+		command = command.substr(0, seperator);
+	}
+
+	std::istringstream ss(command);
+	while(std::getline(ss, token, '.'))
+		commandParts.push_back(token);
+
+	if(arguments.size()) {
+		ss.str(command);
+		while(std::getline(ss, token, ','))
+			agruments.push_back(token);
+	}
+
 	Instruction instruction;
 	// TODO
 	instructions.insert(std::pair<AddressType, UInt32>(address, instruction.encode32()));
@@ -830,12 +849,18 @@ bool Assembler::readFromFile(const std::string& path) {
 	AddressType address = 0;
 	for(std::string line; getline(file, line); ) {
 		trim(line);
+		if(line.size() == 0) continue;
 
-		auto colon = line.find(':');
-		if(colon != std::string::npos) {
-			std::string jumpMark = line.substr(0, colon);
+		if(line[0] == '.') {
+			// TODO
+			continue;
+		}
+
+		auto seperator = line.rfind(':');
+		if(seperator != std::string::npos) {
+			std::string jumpMark = line.substr(0, seperator);
 			jumpMarks.insert(std::pair<AddressType, std::string>(address, jumpMark));
-			line = line.substr(colon+1);
+			line = line.substr(seperator+1);
 		}
 
 		if(line.size() == 0) continue;
