@@ -16,17 +16,23 @@ class Disassembler {
 
 	char buffer[64];
 	std::map<AddressType, std::string> instructions;
+	std::map<AddressType, std::string> symbols;
 	std::map<AddressType, std::string> jumpMarks;
 
 	void addJumpMark(AddressType address) {
-		auto iter = jumpMarks.find(address);
-		if(iter == jumpMarks.end()) {
-			char str[32];
-			sprintf(str, "mark_%ld", jumpMarks.size());
-			auto res = jumpMarks.insert(std::pair<AddressType, std::string>(address, str));
-			iter = res.first;
+		auto jumpMarkIter = jumpMarks.find(address);
+		if(jumpMarkIter == jumpMarks.end()) {
+			char str[128];
+			auto symbolIter = symbols.upper_bound(address);
+			if(symbolIter == symbols.begin()) {
+				sprintf(str, "null[%llx]", address);
+			}else{
+				--symbolIter;
+				sprintf(str, "%s[%llx]", symbolIter->second.c_str(), address-symbolIter->first);
+			}
+			jumpMarkIter = jumpMarks.insert(std::pair<AddressType, std::string>(address, str)).first;
 		}
-		sprintf(buffer, "%s %s", buffer, iter->second.c_str());
+		sprintf(buffer, "%s %s", buffer, jumpMarkIter->second.c_str());
 	}
 
 	void addInstruction(const Instruction& instruction, AddressType address);

@@ -148,7 +148,7 @@ void printRoundingMode(Disassembler& self, const Instruction& instruction) {
 void printAtomicMode(Disassembler& self, const Instruction& instruction) {
 	for(UInt8 i = 0; i < 2; ++i)
 		if((instruction.funct[0]>>i)&1)
-			strcat(self.buffer, typesOfOpcode2F_2[0]);
+			strcat(self.buffer, typesOfOpcode2F_2[i]);
 }
 
 void print_x_x(Disassembler& self, const Instruction& instruction, UInt8 index = 0) {
@@ -252,7 +252,7 @@ void disassembleOpcode17(Disassembler& self, const Instruction& instruction, Add
 	strcpy(self.buffer, "AUIPC");
 	printIntRegister(self, instruction.reg[0]);
 	printSeperator(self);
-	self.addJumpMark(address+static_cast<Int32>(instruction.imm));
+	printInt32(self, static_cast<Int32>(instruction.imm));
 }
 
 void disassembleOpcode1B(Disassembler& self, const Instruction& instruction) {
@@ -326,6 +326,8 @@ void disassembleOpcode2F(Disassembler& self, const Instruction& instruction) {
 		case 0x70:
 		strcpy(self.buffer, "AMOMAXU");
 		break;
+		default:
+		throw Exception(Exception::Code::IllegalInstruction);
 	}
 	strcat(self.buffer, typesOfOpcode2F[instruction.funct[0]]);
 	printAtomicMode(self, instruction);
@@ -338,7 +340,7 @@ void disassembleOpcode33(Disassembler& self, const Instruction& instruction) {
 	else
 		switch(instruction.funct[0]) {
 			case 0:
-			strcpy(self.buffer, typesOfOpcode3X_0[instruction.funct[1]]);
+			strcpy(self.buffer, typesOfOpcode3X_0[instruction.funct[1]!=0]);
 			break;
 			case 1:
 			strcpy(self.buffer, "SLL");
@@ -353,7 +355,7 @@ void disassembleOpcode33(Disassembler& self, const Instruction& instruction) {
 			strcpy(self.buffer, "XOR");
 			break;
 			case 5:
-			strcpy(self.buffer, typesOfOpcode3X_5[instruction.funct[1]]);
+			strcpy(self.buffer, typesOfOpcode3X_5[instruction.funct[1]!=0]);
 			break;
 			case 6:
 			strcpy(self.buffer, "OR");
@@ -375,17 +377,16 @@ void disassembleOpcode37(Disassembler& self, const Instruction& instruction) {
 void disassembleOpcode3B(Disassembler& self, const Instruction& instruction) {
 	if(instruction.funct[1] == 1) {
 		strcpy(self.buffer, typesOfOpcode33[instruction.funct[0]]);
-		strcat(self.buffer, "W");
 	}else
 		switch(instruction.funct[0]) {
 			case 0:
-			strcpy(self.buffer, typesOfOpcode3X_0[instruction.funct[1]]);
+			strcpy(self.buffer, typesOfOpcode3X_0[instruction.funct[1]!=0]);
 			break;
 			case 1:
 			strcpy(self.buffer, "SLL");
 			break;
 			case 5:
-			strcpy(self.buffer, typesOfOpcode3X_5[instruction.funct[1]]);
+			strcpy(self.buffer, typesOfOpcode3X_5[instruction.funct[1]!=0]);
 			break;
 			default:
 			throw Exception(Exception::Code::IllegalInstruction);
@@ -491,6 +492,8 @@ void disassembleOpcode53(Disassembler& self, const Instruction& instruction) {
 		printSeperator(self);
 		printIntRegister(self, instruction.reg[1]);
 		return;
+		default:
+		throw Exception(Exception::Code::IllegalInstruction);
 	}
 	printFloatRegister(self, instruction.reg[0]);
 	printSeperator(self);
@@ -503,7 +506,7 @@ void disassembleOpcode63(Disassembler& self, const Instruction& instruction, Add
 	strcpy(self.buffer, typesOfOpcode63[instruction.funct[0]]);
 	print_x_x(self, instruction, 1);
 	printSeperator(self);
-	self.addJumpMark(address+static_cast<Int32>(instruction.imm)*2);
+	self.addJumpMark(address+static_cast<Int32>(instruction.imm));
 }
 
 void disassembleOpcode67(Disassembler& self, const Instruction& instruction) {
@@ -523,7 +526,7 @@ void disassembleOpcode6F(Disassembler& self, const Instruction& instruction, Add
 		printIntRegister(self, instruction.reg[0]);
 		printSeperator(self);
 	}
-	self.addJumpMark(address+static_cast<Int32>(instruction.imm)*2);
+	self.addJumpMark(address+static_cast<Int32>(instruction.imm));
 }
 
 void disassembleOpcode73(Disassembler& self, const Instruction& instruction) {
@@ -700,15 +703,17 @@ void Disassembler::addInstruction(const Instruction& instruction, AddressType ad
 
 void Disassembler::addFunction(const UInt8* base, const std::string& name, AddressType address, AddressType size) {
 	if(!base) return;
+
 	Instruction instruction;
-	jumpMarks.insert(std::pair<AddressType, std::string>(address, name));
 	for(AddressType i = 0; i < size; i += sizeof(InstructionType)) {
 		try {
 			instruction.decode32(*reinterpret_cast<const InstructionType*>(base+i));
 			addInstruction(instruction, address+i);
+			//if(instruction.opcode == 0x6F && instruction.reg[0] == 0) break;
 		}catch(Exception e) {
 			instruction.decode32(0x00000013);
 			addInstruction(instruction, address+i);
+			printf("Illegal instruction at %llx.\n", address+i);
 		}
 	}
 }
@@ -722,8 +727,8 @@ bool Disassembler::writeToFile(const std::string& path) {
 	for(auto& i : instructions) {
 		auto jm = jumpMarks.find(i.first);
 		if(jm != jumpMarks.end())
-			file << std::hex << i.first << " " << jm->second << ":\n";
-		file << "\t" << std::hex << i.first << " : " << i.second << "\n";
+			file << jm->second << ":\n";
+		file << "\t" << i.second << "\n";
 	}
 	file.close();
 	return true;
@@ -771,7 +776,7 @@ bool Disassembler::readFromFile(const std::string& path) {
 	}
 
 	std::string name;
-	ELFIO::Elf64_Addr value;
+	ELFIO::Elf64_Addr address;
 	ELFIO::Elf_Xword size;
 	unsigned char bind;
 	unsigned char type;
@@ -780,7 +785,7 @@ bool Disassembler::readFromFile(const std::string& path) {
 
 	ELFIO::Elf_Half textSecIndex = 0, sec_num = reader.sections.size();
 	std::cout << "Number of sections: " << sec_num << std::endl;
-	for(size_t i = 0; i < sec_num; ++i) {
+	for(unsigned int i = 0; i < sec_num; ++i) {
 		ELFIO::section* psec = reader.sections[i];
 	    std::cout << "  [" << i << "] "
 	              << psec->get_name()
@@ -794,13 +799,24 @@ bool Disassembler::readFromFile(const std::string& path) {
 			textSecIndex = i;
 
 	    if(psec->get_type() == SHT_SYMTAB) {
-	        const ELFIO::symbol_section_accessor symbols(reader, psec);
-			auto sym_num = symbols.get_symbols_num();
+	        const ELFIO::symbol_section_accessor symbolAccessor(reader, psec);
+			auto sym_num = symbolAccessor.get_symbols_num();
+
 			for(unsigned int j = 0; j < sym_num; ++j) {
-	            symbols.get_symbol(j, name, value, size, bind, type, section_index, other);
+				symbolAccessor.get_symbol(j, name, address, size, bind, type, section_index, other);
 				if(size == 0 || name.size() == 0 || section_index != textSecIndex) continue;
 
-				addFunction(segmentsTranslate(reader, value), name, value, size);
+				std::pair<AddressType, std::string> pair(address, name);
+				jumpMarks.insert(pair);
+				auto result = symbols.insert(pair);
+				if(!result.second)
+					printf("Address already bound %llx %s : %s\n", address, name.c_str(), result.first->second.c_str());
+			}
+
+			for(unsigned int j = 0; j < sym_num; ++j) {
+				symbolAccessor.get_symbol(j, name, address, size, bind, type, section_index, other);
+				if(size == 0 || name.size() == 0 || section_index != textSecIndex) continue;
+				addFunction(segmentsTranslate(reader, address), name, address, size);
 	        }
 	    }
 	}
