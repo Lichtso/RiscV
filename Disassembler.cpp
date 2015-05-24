@@ -3,103 +3,120 @@
 
 const UInt8 ELF_machine = 243;
 
-const char* typesOfOpcode03[] = {
-	"LB", "LH", "LW", "LD",
-	"LBU", "LHU", "LWU", NULL
+const std::map<UInt32, std::string> disassembler_03 = {
+	{0, "LB"}, {1, "LH"}, {2, "LW"}, {3, "LD"},
+	{4, "LBU"}, {5, "LHU"}, {6, "LWU"}
 };
 
-const char* typesOfOpcode0F[] = {
-	"W", "R", "O", "I"
+const std::map<UInt32, std::string> disassembler_07 = {
+	{2, "FLW"}, {3, "FLD"}
 };
 
-const char* typesOfOpcode23[] = {
-	"SB", "SH", "SW", "SD",
-	NULL, NULL, NULL, NULL
+const std::map<UInt32, std::string> disassembler_0F = {
+	{0, "W"}, {1, "R"}, {2, "O"}, {3, "I"}
 };
 
-const char* typesOfOpcode2F[] = {
-	NULL, NULL, ".W", ".D"
+const std::map<UInt32, std::string> disassembler_23 = {
+	{0, "SB"}, {1, "SH"}, {2, "SW"}, {3, "SD"}
 };
 
-const char* typesOfOpcode2F_2[] = {
-	".RL", ".AQ"
+const std::map<UInt32, std::string> disassembler_27 = {
+	{2, "FSW"}, {3, "FSD"}
 };
 
-const char* typesOfOpcode27[] = {
-	"FSW", "FSD"
+const std::map<UInt32, std::string> disassembler_2F = {
+	{2, "W"}, {3, "D"}
 };
 
-const char* typesOfOpcode33[] = {
-	"MUL", "MULH", "MULHSU", "MULHU",
-	"DIV", "DIVU", "REM", "REMU"
+const std::map<UInt32, std::string> disassembler_2F_2 = {
+	{0, "RL"}, {1, "AQ"}
 };
 
-const char* typesOfOpcode3X_0[] = {
-	"ADD", "SUB"
+const std::map<UInt32, std::string> disassembler_33 = {
+	{0, "MUL"}, {1, "MULH"}, {2, "MULHSU"}, {3, "MULHU"},
+	{4, "DIV"}, {5, "DIVU"}, {6, "REM"}, {7, "REMU"}
 };
 
-const char* typesOfOpcode3X_5[] = {
-	"SRL", "SRA"
+const std::map<UInt32, std::string> disassembler_3X_0 = {
+	{0, "ADD"}, {32, "SUB"}
 };
 
-const char* typesOfOpcode4X[] = {
-	"FMADD", "FMSUB", "FNMSUB", "FNMADD"
+const std::map<UInt32, std::string> disassembler_3X_5 = {
+	{0, "SRL"}, {32, "SRA"}
 };
 
-const char* typesOfFloat[] = {
-	".S", ".D"
+const std::map<UInt32, std::string> disassembler_4X = {
+	{0, "FMADD"}, {1, "FMSUB"}, {2, "FNMSUB"}, {3, "FNMADD"}
 };
 
-const char* floatStatusFlags[] = {
-	"NX", "UF", "OF", "DZ", "NV"
+const std::map<UInt32, std::string> disassembler_Float = {
+	{0, "S"}, {1, "D"}
 };
 
-const char* roundingModes[] = {
-	".RNE", ".RTZ", ".RDN", ".RUP", ".RMM"
+const std::map<UInt32, std::string> disassembler_FloatStatusFlags = {
+	{0, "NX"}, {1, "UF"}, {2, "OF"}, {3, "DZ"}, {4, "NV"}
 };
 
-const char* typesOfOpcode53_10[] = {
-	"FSGNJ", "FSGNJN", "FSGNJX"
+const std::map<UInt32, std::string> disassembler_FloatRoundingModes = {
+	{0, "RNE"}, {1, "RTZ"}, {2, "RDN"}, {3, "RUP"}, {4, "RMM"}
 };
 
-const char* typesOfOpcode53_14[] = {
-	"FMIN", "FMAX"
+const std::map<UInt32, std::string> disassembler_53_10 = {
+	{0, "FSGNJ"}, {1, "FSGNJN"}, {2, "FSGNJX"}
 };
 
-const char* typesOfOpcode53_50[] = {
-	"FLE", "FLT", "FEQ"
+const std::map<UInt32, std::string> disassembler_53_14 = {
+	{0, "FMIN"}, {1, "FMAX"}
 };
 
-const char* typesOfOpcode53_CVT[] = {
-	".W", ".WU", ".L", ".LU"
+const std::map<UInt32, std::string> disassembler_53_50 = {
+	{0, "FLE"}, {1, "FLT"}, {2, "FEQ"}
 };
 
-const char* typesOfOpcode53_70[] = {
-	"FMV.X", "FCLASS"
+const std::map<UInt32, std::string> disassembler_53_CVT = {
+	{0, "W"}, {1, "WU"}, {2, "L"}, {3, "LU"}
 };
 
-const char* typesOfOpcode63[] = {
-	"BEQ", "BNE", NULL, NULL,
-	"BLT", "BGE", "BLTU", "BGEU"
+const std::map<UInt32, std::string> disassembler_53_70 = {
+	{0, "FMV"}, {1, "FCLASS"}
 };
 
-const char* typesOfOpcode73[] = {
-	NULL, "CSRRW", "CSRRS", "CSRRC",
-	NULL, "CSRRWI", "CSRRSI", "CSRRCI"
+const std::map<UInt32, std::string> disassembler_63 = {
+	{0, "BEQ"}, {1, "BNE"},
+	{4, "BLT"}, {5, "BGE"}, {6, "BLTU"}, {7, "BGEU"}
 };
 
-const char* typesOfOpcode73_2[] = {
-	NULL, "FSFLAGS", "FSRM", "FSCSR"
+const std::map<UInt32, std::string> disassembler_73 = {
+	{1, "CSRRW"}, {2, "CSRRS"}, {3, "CSRRC"},
+	{5, "CSRRWI"}, {6, "CSRRSI"}, {7, "CSRRCI"}
 };
 
-const char* intRegisterABINames[] = {
-	"zero", "ra", "fp", "s1", "s2", "s3", "s4", "s5",
-	"s6", "s7", "s8", "s9", "s10", "s11", "sp", "tp",
-	"v0", "v1", "a0", "a1", "a2", "a3", "a4", "a5",
-	"a6", "a7", "t0", "t1", "t2", "t3", "t4", "gp"
+const std::map<UInt32, std::string> disassembler_73_2 = {
+	{1, "FSFLAGS"}, {2, "FSRM"}, {3, "FSCSR"}
+};
+
+const std::map<UInt32, std::string> disassembler_IntRegABINames = {
+	{0, "zero"}, {1, "ra"}, {2, "fp"}, {3, "s1"}, {4, "s2"}, {5, "s3"}, {6, "s4"}, {7, "s5"},
+	{8, "s6"}, {9, "s7"}, {10, "s8"}, {11, "s9"}, {12, "s10"}, {13, "s11"}, {14, "sp"}, {15, "tp"},
+	{16, "v0"}, {17, "v1"}, {18, "a0"}, {19, "a1"}, {20, "a2"}, {21, "a3"}, {22, "a4"}, {23, "a5"},
+	{24, "a6"}, {25, "a7"}, {26, "t0"}, {27, "t1"}, {28, "t2"}, {29, "t3"}, {30, "t4"}, {31, "gp"}
+};
+
+const std::map<UInt32, std::string> disassembler_FloatRegABINames = {
+	{0, "fs0"}, {1, "fs1"}, {2, "fs2"}, {3, "fs3"}, {4, "fs4"}, {5, "fs5"}, {6, "fs6"}, {7, "fs7"},
+	{8, "fs8"}, {9, "fs9"}, {10, "fs10"}, {11, "fs11"}, {12, "fs12"}, {13, "fs13"}, {14, "fs14"}, {15, "fs15"},
+	{16, "fv0"}, {17, "fv1"}, {18, "fa0"}, {19, "fa1"}, {20, "fa2"}, {21, "fa3"}, {22, "fa4"}, {23, "fa5"},
+	{24, "fa6"}, {25, "fa7"}, {26, "ft0"}, {27, "ft1"}, {28, "ft2"}, {29, "ft3"}, {30, "ft4"}, {31, "ft5"}
 };
 
 
+
+const char* getDisassemblerEntry(const std::map<UInt32, std::string>& map, UInt32 key) {
+	auto iter = map.find(key);
+	if(iter == map.end())
+		throw Exception(Exception::Code::IllegalInstruction);
+	return iter->second.c_str();
+}
 
 void printSeperator(Disassembler& self) {
 	strcat(self.buffer, ",");
@@ -121,34 +138,31 @@ void printInt32(Disassembler& self, Int32 value) {
 
 void printIntRegister(Disassembler& self, UInt8 index) {
 	if(self.flags&Disassembler::FlagABI)
-		sprintf(self.buffer, "%s %s", self.buffer, intRegisterABINames[index]);
+		sprintf(self.buffer, "%s %s", self.buffer, getDisassemblerEntry(disassembler_IntRegABINames, index));
 	else
 		sprintf(self.buffer, "%s x%d", self.buffer, index);
 }
 
 void printFloatRegister(Disassembler& self, UInt8 index) {
 	if(self.flags&Disassembler::FlagABI) {
-		if(index < 16)
-			sprintf(self.buffer, "%s fs%d", self.buffer, index);
-		else if(index < 18)
-			sprintf(self.buffer, "%s fv%d", self.buffer, index-16);
-		else if(index < 26)
-			sprintf(self.buffer, "%s fa%d", self.buffer, index-18);
-		else
-			sprintf(self.buffer, "%s ft%d", self.buffer, index-26);
+		sprintf(self.buffer, "%s %s", self.buffer, getDisassemblerEntry(disassembler_FloatRegABINames, index));
 	}else
 		sprintf(self.buffer, "%s f%d", self.buffer, index);
 }
 
 void printRoundingMode(Disassembler& self, const Instruction& instruction) {
-	if(instruction.funct[0] <= 4)
-		strcat(self.buffer, roundingModes[instruction.funct[0]]);
+	if(instruction.funct[0] <= 4) {
+		strcat(self.buffer, ".");
+		strcat(self.buffer, getDisassemblerEntry(disassembler_FloatRoundingModes, instruction.funct[0]));
+	}
 }
 
 void printAtomicMode(Disassembler& self, const Instruction& instruction) {
 	for(UInt8 i = 0; i < 2; ++i)
-		if((instruction.funct[0]>>i)&1)
-			strcat(self.buffer, typesOfOpcode2F_2[i]);
+		if((instruction.funct[0]>>i)&1) {
+			strcat(self.buffer, ".");
+			strcat(self.buffer, getDisassemblerEntry(disassembler_2F_2, i));
+		}
 }
 
 void print_x_x(Disassembler& self, const Instruction& instruction, UInt8 index = 0) {
@@ -176,30 +190,31 @@ void print_x_x_x(Disassembler& self, const Instruction& instruction, UInt8 index
 
 
 void disassembleOpcode03(Disassembler& self, const Instruction& instruction) {
-	strcpy(self.buffer, typesOfOpcode03[instruction.funct[0]]);
+	strcpy(self.buffer, getDisassemblerEntry(disassembler_03, instruction.funct[0]));
 	print_x_x_i(self, instruction);
 }
 
 void disassembleOpcode07(Disassembler& self, const Instruction& instruction) {
-	strcpy(self.buffer, (instruction.funct[0] == 2) ? "FLW" : "FLD");
+	strcpy(self.buffer, getDisassemblerEntry(disassembler_07, instruction.funct[0]));
 	print_x_x_i(self, instruction);
 }
 
 void disassembleOpcode0F(Disassembler& self, const Instruction& instruction) {
-	if(instruction.funct[0] == 0) {
-		strcpy(self.buffer, "FENCE");
-		if(instruction.imm < 0xFF) {
-			strcat(self.buffer, " ");
-			for(UInt8 i = 0; i < 4; ++i)
-				if((instruction.imm>>(i+4))&1)
-					strcat(self.buffer, typesOfOpcode0F[i]);
-			strcat(self.buffer, ", ");
-			for(UInt8 i = 0; i < 4; ++i)
-				if((instruction.imm>>i)&1)
-					strcat(self.buffer, typesOfOpcode0F[i]);
-		}
-	}else
-		strcpy(self.buffer, "FENCE.I");
+	if(instruction.funct[0] > 1)
+		throw Exception(Exception::Code::IllegalInstruction);
+	strcpy(self.buffer, "FENCE");
+	if(instruction.funct[0] == 1)
+		strcat(self.buffer, ".I");
+	else if(instruction.imm < 0xFF) {
+		strcat(self.buffer, " ");
+		for(UInt8 i = 0; i < 4; ++i)
+			if((instruction.imm>>(i+4))&1)
+				strcat(self.buffer, getDisassemblerEntry(disassembler_0F, i));
+		strcat(self.buffer, ", ");
+		for(UInt8 i = 0; i < 4; ++i)
+			if((instruction.imm>>i)&1)
+				strcat(self.buffer, getDisassemblerEntry(disassembler_0F, i));
+	}
 }
 
 void disassembleOpcode13(Disassembler& self, const Instruction& instruction) {
@@ -244,6 +259,8 @@ void disassembleOpcode13(Disassembler& self, const Instruction& instruction) {
 		case 7:
 		strcpy(self.buffer, "ANDI");
 		break;
+		default:
+		throw Exception(Exception::Code::IllegalInstruction);
 	}
 	print_x_x_i(self, instruction);
 }
@@ -279,12 +296,12 @@ void disassembleOpcode1B(Disassembler& self, const Instruction& instruction) {
 }
 
 void disassembleOpcode23(Disassembler& self, const Instruction& instruction) {
-	strcpy(self.buffer, typesOfOpcode23[instruction.funct[0]]);
+	strcpy(self.buffer, getDisassemblerEntry(disassembler_23, instruction.funct[0]));
 	print_x_x_i(self, instruction, 1);
 }
 
 void disassembleOpcode27(Disassembler& self, const Instruction& instruction) {
-	strcpy(self.buffer, typesOfOpcode27[instruction.funct[0]]);
+	strcpy(self.buffer, getDisassemblerEntry(disassembler_27, instruction.funct[0]));
 	print_x_x_i(self, instruction, 1);
 }
 
@@ -298,7 +315,8 @@ void disassembleOpcode2F(Disassembler& self, const Instruction& instruction) {
 		break;
 		case 0x08:
 		strcpy(self.buffer, "LR");
-		strcat(self.buffer, typesOfOpcode2F[instruction.funct[0]]);
+		strcat(self.buffer, ".");
+		strcat(self.buffer, getDisassemblerEntry(disassembler_2F, instruction.funct[0]));
 		printAtomicMode(self, instruction);
 		print_x_x(self, instruction);
 		return;
@@ -329,18 +347,19 @@ void disassembleOpcode2F(Disassembler& self, const Instruction& instruction) {
 		default:
 		throw Exception(Exception::Code::IllegalInstruction);
 	}
-	strcat(self.buffer, typesOfOpcode2F[instruction.funct[0]]);
+	strcat(self.buffer, ".");
+	strcat(self.buffer, getDisassemblerEntry(disassembler_2F, instruction.funct[0]));
 	printAtomicMode(self, instruction);
 	print_x_x_x(self, instruction);
 }
 
 void disassembleOpcode33(Disassembler& self, const Instruction& instruction) {
 	if(instruction.funct[1] == 1)
-		strcpy(self.buffer, typesOfOpcode33[instruction.funct[0]]);
+		strcpy(self.buffer, getDisassemblerEntry(disassembler_33, instruction.funct[0]));
 	else
 		switch(instruction.funct[0]) {
 			case 0:
-			strcpy(self.buffer, typesOfOpcode3X_0[instruction.funct[1]!=0]);
+			strcpy(self.buffer, getDisassemblerEntry(disassembler_3X_0, instruction.funct[1]));
 			break;
 			case 1:
 			strcpy(self.buffer, "SLL");
@@ -355,7 +374,7 @@ void disassembleOpcode33(Disassembler& self, const Instruction& instruction) {
 			strcpy(self.buffer, "XOR");
 			break;
 			case 5:
-			strcpy(self.buffer, typesOfOpcode3X_5[instruction.funct[1]!=0]);
+			strcpy(self.buffer, getDisassemblerEntry(disassembler_3X_5, instruction.funct[1]));
 			break;
 			case 6:
 			strcpy(self.buffer, "OR");
@@ -376,17 +395,17 @@ void disassembleOpcode37(Disassembler& self, const Instruction& instruction) {
 
 void disassembleOpcode3B(Disassembler& self, const Instruction& instruction) {
 	if(instruction.funct[1] == 1) {
-		strcpy(self.buffer, typesOfOpcode33[instruction.funct[0]]);
+		strcpy(self.buffer, getDisassemblerEntry(disassembler_33, instruction.funct[0]));
 	}else
 		switch(instruction.funct[0]) {
 			case 0:
-			strcpy(self.buffer, typesOfOpcode3X_0[instruction.funct[1]!=0]);
+			strcpy(self.buffer, getDisassemblerEntry(disassembler_3X_0, instruction.funct[1]));
 			break;
 			case 1:
 			strcpy(self.buffer, "SLL");
 			break;
 			case 5:
-			strcpy(self.buffer, typesOfOpcode3X_5[instruction.funct[1]!=0]);
+			strcpy(self.buffer, getDisassemblerEntry(disassembler_3X_5, instruction.funct[1]));
 			break;
 			default:
 			throw Exception(Exception::Code::IllegalInstruction);
@@ -396,8 +415,9 @@ void disassembleOpcode3B(Disassembler& self, const Instruction& instruction) {
 }
 
 void disassembleOpcode4X(Disassembler& self, const Instruction& instruction) {
-	strcpy(self.buffer, typesOfOpcode4X[(instruction.opcode>>2)&TrailingBitMask(2)]);
-	strcat(self.buffer, typesOfFloat[instruction.funct[1]]);
+	strcpy(self.buffer, getDisassemblerEntry(disassembler_4X, (instruction.opcode>>2)&TrailingBitMask(2)));
+	strcat(self.buffer, ".");
+	strcat(self.buffer, getDisassemblerEntry(disassembler_Float, instruction.funct[1]));
 	printRoundingMode(self, instruction);
 	printFloatRegister(self, instruction.reg[0]);
 	printSeperator(self);
@@ -409,38 +429,38 @@ void disassembleOpcode4X(Disassembler& self, const Instruction& instruction) {
 }
 
 void disassembleOpcode53(Disassembler& self, const Instruction& instruction) {
-	const char* type = typesOfFloat[instruction.funct[1]&TrailingBitMask(1)];
+	const char* type = getDisassemblerEntry(disassembler_Float, instruction.funct[1]&TrailingBitMask(1));
 	switch(instruction.funct[1]&~TrailingBitMask(1)) {
 		case 0x00:
-		strcpy(self.buffer, "FADD");
+		strcpy(self.buffer, "FADD.");
 		strcat(self.buffer, type);
 		printRoundingMode(self, instruction);
 		break;
 		case 0x04:
-		strcpy(self.buffer, "FSUB");
+		strcpy(self.buffer, "FSUB.");
 		strcat(self.buffer, type);
 		printRoundingMode(self, instruction);
 		break;
 		case 0x08:
-		strcpy(self.buffer, "FMUL");
+		strcpy(self.buffer, "FMUL.");
 		strcat(self.buffer, type);
 		printRoundingMode(self, instruction);
 		break;
 		case 0x0C:
-		strcpy(self.buffer, "FDIV");
+		strcpy(self.buffer, "FDIV.");
 		strcat(self.buffer, type);
 		printRoundingMode(self, instruction);
 		break;
 		case 0x20:
-		strcpy(self.buffer, "FCVT");
+		strcpy(self.buffer, "FCVT.");
 		strcat(self.buffer, type);
-		strcat(self.buffer, typesOfFloat[instruction.reg[2]]);
+		strcat(self.buffer, getDisassemblerEntry(disassembler_Float, instruction.reg[2]));
 		printFloatRegister(self, instruction.reg[0]);
 		printSeperator(self);
 		printFloatRegister(self, instruction.reg[1]);
 		return;
 		case 0x2C:
-		strcpy(self.buffer, "FSQRT");
+		strcpy(self.buffer, "FSQRT.");
 		strcat(self.buffer, type);
 		printRoundingMode(self, instruction);
 		printFloatRegister(self, instruction.reg[0]);
@@ -448,20 +468,21 @@ void disassembleOpcode53(Disassembler& self, const Instruction& instruction) {
 		printFloatRegister(self, instruction.reg[1]);
 		return;
 		case 0x10:
-		strcpy(self.buffer, typesOfOpcode53_10[instruction.funct[0]]);
+		strcpy(self.buffer, getDisassemblerEntry(disassembler_53_10, instruction.funct[0]));
 		strcat(self.buffer, type);
 		break;
 		case 0x14:
-		strcpy(self.buffer, typesOfOpcode53_14[instruction.funct[0]]);
+		strcpy(self.buffer, getDisassemblerEntry(disassembler_53_14, instruction.funct[0]));
 		strcat(self.buffer, type);
 		break;
 		case 0x50:
-		strcpy(self.buffer, typesOfOpcode53_50[instruction.funct[0]]);
+		strcpy(self.buffer, getDisassemblerEntry(disassembler_53_50, instruction.funct[0]));
 		strcat(self.buffer, type);
 		break;
 		case 0x60:
-		strcpy(self.buffer, "FCVT");
-		strcat(self.buffer, typesOfOpcode53_CVT[instruction.reg[2]]);
+		strcpy(self.buffer, "FCVT.");
+		strcat(self.buffer, getDisassemblerEntry(disassembler_53_CVT, instruction.reg[2]));
+		strcat(self.buffer, ".");
 		strcat(self.buffer, type);
 		printRoundingMode(self, instruction);
 		printIntRegister(self, instruction.reg[0]);
@@ -469,23 +490,27 @@ void disassembleOpcode53(Disassembler& self, const Instruction& instruction) {
 		printFloatRegister(self, instruction.reg[1]);
 		return;
 		case 0x68:
-		strcpy(self.buffer, "FCVT");
+		strcpy(self.buffer, "FCVT.");
 		strcat(self.buffer, type);
-		strcat(self.buffer, typesOfOpcode53_CVT[instruction.reg[2]]);
+		strcat(self.buffer, ".");
+		strcat(self.buffer, getDisassemblerEntry(disassembler_53_CVT, instruction.reg[2]));
 		printRoundingMode(self, instruction);
 		printFloatRegister(self, instruction.reg[0]);
 		printSeperator(self);
 		printIntRegister(self, instruction.reg[1]);
 		return;
 		case 0x70:
-		strcat(self.buffer, typesOfOpcode53_70[instruction.funct[0]]);
+		strcat(self.buffer, getDisassemblerEntry(disassembler_53_70, instruction.funct[0]));
+		if(instruction.funct[0] == 0)
+			strcat(self.buffer, ".X");
+		strcat(self.buffer, ".");
 		strcat(self.buffer, type);
 		printIntRegister(self, instruction.reg[0]);
 		printSeperator(self);
 		printFloatRegister(self, instruction.reg[1]);
 		return;
 		case 0x78:
-		strcpy(self.buffer, "FMV");
+		strcpy(self.buffer, "FMV.");
 		strcat(self.buffer, type);
 		strcat(self.buffer, ".X");
 		printFloatRegister(self, instruction.reg[0]);
@@ -503,7 +528,7 @@ void disassembleOpcode53(Disassembler& self, const Instruction& instruction) {
 }
 
 void disassembleOpcode63(Disassembler& self, const Instruction& instruction, AddressType address) {
-	strcpy(self.buffer, typesOfOpcode63[instruction.funct[0]]);
+	strcpy(self.buffer, getDisassemblerEntry(disassembler_63, instruction.funct[0]));
 	print_x_x(self, instruction, 1);
 	printSeperator(self);
 	self.addJumpMark(address+static_cast<Int32>(instruction.imm));
@@ -566,7 +591,7 @@ void disassembleOpcode73(Disassembler& self, const Instruction& instruction) {
 				case 1:
 					if(instruction.imm == 0 || instruction.imm > 3)
 						break;
-					strcpy(self.buffer, typesOfOpcode73_2[instruction.imm]);
+					strcpy(self.buffer, getDisassemblerEntry(disassembler_73_2, instruction.imm));
 					print_x_x(self, instruction);
 				return;
 				case 2: {
@@ -610,13 +635,13 @@ void disassembleOpcode73(Disassembler& self, const Instruction& instruction) {
 				case 5:
 					if(instruction.imm == 0 || instruction.imm > 2)
 						break;
-					strcpy(self.buffer, typesOfOpcode73_2[instruction.imm]);
+					strcpy(self.buffer, getDisassemblerEntry(disassembler_73_2, instruction.imm));
 					strcat(self.buffer, "I");
 					print_x_x(self, instruction);
 				break;
 			}
 		}
-		strcpy(self.buffer, typesOfOpcode73[instruction.funct[0]]);
+		strcpy(self.buffer, getDisassemblerEntry(disassembler_73, instruction.funct[0]));
 		printIntRegister(self, instruction.reg[0]);
 		if(instruction.funct[0] <= 4) {
 			printSeperator(self);
@@ -866,6 +891,7 @@ bool Assembler::readFromFile(const std::string& path) {
 	for(std::string line; getline(file, line); ) {
 		trim(line);
 		if(line.size() == 0) continue;
+		std::transform(line.begin(), line.end(), line.begin(), ::toupper);
 
 		if(line[0] == '.') {
 			// TODO
