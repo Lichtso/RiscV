@@ -16,25 +16,28 @@ typedef unsigned int UInt32; typedef int Int32; typedef float Float32;
 typedef unsigned long long int UInt64; typedef long long int Int64; typedef double Float64;
 
 namespace std {
-	template <bool condition, typename TrueType, TrueType trueValue, typename FalseType, FalseType falseValue>
+	template<bool condition, typename TrueType, TrueType trueValue, typename FalseType, FalseType falseValue>
 	struct conditional_value : std::conditional<condition,
 	std::integral_constant<TrueType, trueValue>,
 	std::integral_constant<FalseType, falseValue>>::type
 	{ };
-};
 
-static inline std::string &ltrim(std::string &s) {
-    s.erase(s.begin(), std::find_if(s.begin(), s.end(), std::not1(std::ptr_fun<int, int>(std::isspace))));
-    return s;
-}
+	template<class string>
+	static inline string& trimFromBegin(string& s) {
+    	s.erase(s.begin(), std::find_if(s.begin(), s.end(), std::not1(std::ptr_fun<int, int>(isspace))));
+    	return s;
+	}
 
-static inline std::string &rtrim(std::string &s) {
-    s.erase(std::find_if(s.rbegin(), s.rend(), std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
-    return s;
-}
+	template<class string>
+	static inline string& trimFromEnd(string& s) {
+    	s.erase(std::find_if(s.rbegin(), s.rend(), std::not1(std::ptr_fun<int, int>(isspace))).base(), s.end());
+    	return s;
+	}
 
-static inline std::string &trim(std::string &s) {
-    return ltrim(rtrim(s));
+	template<class string>
+	static inline string& trim(string& s) {
+    	return trimFromBegin(trimFromEnd(s));
+	}
 }
 
 typedef UInt64 AddressType;

@@ -1,6 +1,14 @@
 #include "Disassembler.hpp"
 #include <elfio/elfio.hpp>
 
+/* TODO Pseudo Instruction:
+  FSRMI
+  FSFLAGSI
+  FSGNJ.S rx, ry, ry moves ry to rx (assembler pseudo-op FMV.S rx, ry)
+  FSGNJN.S rx, ry, ry moves the the negation of ry to rx (assembler pseudo-op FNEG.S rx, ry)
+  FSGNJX.S rx, ry, ry moves the absolute value of ry to rx (assembler pseudo-op FABS.S rx, ry)
+*/
+
 const UInt8 ELF_machine = 243;
 
 const std::map<UInt32, std::string> disassembler_03 = {
@@ -221,11 +229,11 @@ void disassembleOpcode13(Disassembler& self, const Instruction& instruction) {
 	UInt32 imm = instruction.imm;
 	switch(instruction.funct[0]) {
 		case 0:
-		if(imm == 0) {
-			if(self.flags&Disassembler::FlagNop && instruction.reg[0] == 0) {
+		if((self.flags&Disassembler::FlagPseudo) && instruction.imm == 0) {
+			if(instruction.reg[0] == 0) {
 				strcpy(self.buffer, "NOP");
 				return;
-			}else if(self.flags&Disassembler::FlagMove) {
+			}else{
 				strcpy(self.buffer, "MV");
 				print_x_x(self, instruction);
 				return;
@@ -240,9 +248,19 @@ void disassembleOpcode13(Disassembler& self, const Instruction& instruction) {
 		strcpy(self.buffer, "SLTI");
 		break;
 		case 3:
+		if((self.flags&Disassembler::FlagPseudo) && instruction.imm == 1) {
+			strcpy(self.buffer, "SEQZ");
+			print_x_x(self, instruction);
+			return;
+		}
 		strcpy(self.buffer, "SLTIU");
 		break;
 		case 4:
+		if((self.flags&Disassembler::FlagPseudo) && instruction.imm == -1) {
+			strcpy(self.buffer, "NOT");
+			print_x_x(self, instruction);
+			return;
+		}
 		strcpy(self.buffer, "XORI");
 		break;
 		case 5:
@@ -276,6 +294,11 @@ void disassembleOpcode1B(Disassembler& self, const Instruction& instruction) {
 	UInt32 imm = instruction.imm;
 	switch(instruction.funct[0]) {
 		case 0:
+		if((self.flags&Disassembler::FlagPseudo) && imm == 0) {
+			strcpy(self.buffer, "SEXT.W");
+			print_x_x(self, instruction);
+			return;
+		}
 		strcpy(self.buffer, "ADDIW");
 		break;
 		case 1:
@@ -368,6 +391,13 @@ void disassembleOpcode33(Disassembler& self, const Instruction& instruction) {
 			strcpy(self.buffer, "SLT");
 			break;
 			case 3:
+			if((self.flags&Disassembler::FlagPseudo) && instruction.reg[1] == 0) {
+				strcpy(self.buffer, "SNEZ");
+				printIntRegister(self, instruction.reg[0]);
+				printSeperator(self);
+				printIntRegister(self, instruction.reg[2]);
+				return;
+			}
 			strcpy(self.buffer, "SLTU");
 			break;
 			case 4:
@@ -544,7 +574,7 @@ void disassembleOpcode67(Disassembler& self, const Instruction& instruction) {
 }
 
 void disassembleOpcode6F(Disassembler& self, const Instruction& instruction, AddressType address) {
-	if(self.flags&Disassembler::FlagJump && instruction.reg[0] == 0)
+	if(self.flags&Disassembler::FlagPseudo && instruction.reg[0] == 0)
 		strcpy(self.buffer, "J");
 	else{
 		strcpy(self.buffer, "JAL");
@@ -853,23 +883,24 @@ bool Disassembler::readFromFile(const std::string& path) {
 
 void Assembler::addInstruction(std::string command, AddressType& address) {
 	auto seperator = command.find(' ');
-	std::string arguments, token;
-	std::vector<std::string> commandParts, agruments;
+	std::string token;
+	std::istringstream ss;
+	std::vector<std::string> commandParts, arguments;
 
 	if(seperator != std::string::npos) {
-		arguments = command.substr(seperator+1);
+		token = command.substr(seperator+1);
 		command = command.substr(0, seperator);
+		if(token.size()) {
+			ss.str(token);
+			while(std::getline(ss, token, ','))
+				arguments.push_back(std::trim(token));
+		}
 	}
 
-	std::istringstream ss(command);
+	ss.clear();
+	ss.str(command);
 	while(std::getline(ss, token, '.'))
-		commandParts.push_back(token);
-
-	if(arguments.size()) {
-		ss.str(command);
-		while(std::getline(ss, token, ','))
-			agruments.push_back(token);
-	}
+		commandParts.push_back(std::trim(token));
 
 	Instruction instruction;
 	// TODO
@@ -889,8 +920,15 @@ bool Assembler::readFromFile(const std::string& path) {
 
 	AddressType address = 0;
 	for(std::string line; getline(file, line); ) {
-		trim(line);
+		line = std::trim(line);
 		if(line.size() == 0) continue;
+
+		auto seperator = line.rfind('#');
+		if(seperator != std::string::npos) {
+			line = line.substr(0, seperator);
+			if(line.size() == 0) continue;
+		}
+
 		std::transform(line.begin(), line.end(), line.begin(), ::toupper);
 
 		if(line[0] == '.') {
@@ -898,7 +936,7 @@ bool Assembler::readFromFile(const std::string& path) {
 			continue;
 		}
 
-		auto seperator = line.rfind(':');
+		seperator = line.rfind(':');
 		if(seperator != std::string::npos) {
 			std::string jumpMark = line.substr(0, seperator);
 			jumpMarks.insert(std::pair<AddressType, std::string>(address, jumpMark));

@@ -4,13 +4,11 @@
 class Disassembler {
 	public:
 	enum {
-		FlagNop = 1<<0,
-		FlagMove = 1<<1,
-		FlagJump = 1<<2,
-		FlagCSR = 1<<3,
-		FlagABI = 1<<4,
-		FlagDec = 1<<5,
-		FlagLowerCase = 1<<6,
+		FlagPseudo = 1<<0,
+		FlagCSR = 1<<1,
+		FlagABI = 1<<2,
+		FlagDec = 1<<3,
+		FlagLowerCase = 1<<4,
 		FlagAll = 0xFF
 	} flags = FlagAll;
 
