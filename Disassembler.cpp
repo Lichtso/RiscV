@@ -1,121 +1,6 @@
-#include "Disassembler.hpp"
-#include <elfio/elfio.hpp>
-
-/* TODO Pseudo Instruction:
-  FSRMI
-  FSFLAGSI
-  FSGNJ.S rx, ry, ry moves ry to rx (assembler pseudo-op FMV.S rx, ry)
-  FSGNJN.S rx, ry, ry moves the the negation of ry to rx (assembler pseudo-op FNEG.S rx, ry)
-  FSGNJX.S rx, ry, ry moves the absolute value of ry to rx (assembler pseudo-op FABS.S rx, ry)
-*/
+#include "AssemblerMnemonics.hpp"
 
 const UInt8 ELF_machine = 243;
-
-const std::map<UInt32, std::string> disassembler_03 = {
-	{0, "LB"}, {1, "LH"}, {2, "LW"}, {3, "LD"},
-	{4, "LBU"}, {5, "LHU"}, {6, "LWU"}
-};
-
-const std::map<UInt32, std::string> disassembler_07 = {
-	{2, "FLW"}, {3, "FLD"}
-};
-
-const std::map<UInt32, std::string> disassembler_0F = {
-	{0, "W"}, {1, "R"}, {2, "O"}, {3, "I"}
-};
-
-const std::map<UInt32, std::string> disassembler_23 = {
-	{0, "SB"}, {1, "SH"}, {2, "SW"}, {3, "SD"}
-};
-
-const std::map<UInt32, std::string> disassembler_27 = {
-	{2, "FSW"}, {3, "FSD"}
-};
-
-const std::map<UInt32, std::string> disassembler_2F = {
-	{2, "W"}, {3, "D"}
-};
-
-const std::map<UInt32, std::string> disassembler_2F_2 = {
-	{0, "RL"}, {1, "AQ"}
-};
-
-const std::map<UInt32, std::string> disassembler_33 = {
-	{0, "MUL"}, {1, "MULH"}, {2, "MULHSU"}, {3, "MULHU"},
-	{4, "DIV"}, {5, "DIVU"}, {6, "REM"}, {7, "REMU"}
-};
-
-const std::map<UInt32, std::string> disassembler_3X_0 = {
-	{0, "ADD"}, {32, "SUB"}
-};
-
-const std::map<UInt32, std::string> disassembler_3X_5 = {
-	{0, "SRL"}, {32, "SRA"}
-};
-
-const std::map<UInt32, std::string> disassembler_4X = {
-	{0, "FMADD"}, {1, "FMSUB"}, {2, "FNMSUB"}, {3, "FNMADD"}
-};
-
-const std::map<UInt32, std::string> disassembler_Float = {
-	{0, "S"}, {1, "D"}
-};
-
-const std::map<UInt32, std::string> disassembler_FloatStatusFlags = {
-	{0, "NX"}, {1, "UF"}, {2, "OF"}, {3, "DZ"}, {4, "NV"}
-};
-
-const std::map<UInt32, std::string> disassembler_FloatRoundingModes = {
-	{0, "RNE"}, {1, "RTZ"}, {2, "RDN"}, {3, "RUP"}, {4, "RMM"}
-};
-
-const std::map<UInt32, std::string> disassembler_53_10 = {
-	{0, "FSGNJ"}, {1, "FSGNJN"}, {2, "FSGNJX"}
-};
-
-const std::map<UInt32, std::string> disassembler_53_14 = {
-	{0, "FMIN"}, {1, "FMAX"}
-};
-
-const std::map<UInt32, std::string> disassembler_53_50 = {
-	{0, "FLE"}, {1, "FLT"}, {2, "FEQ"}
-};
-
-const std::map<UInt32, std::string> disassembler_53_CVT = {
-	{0, "W"}, {1, "WU"}, {2, "L"}, {3, "LU"}
-};
-
-const std::map<UInt32, std::string> disassembler_53_70 = {
-	{0, "FMV"}, {1, "FCLASS"}
-};
-
-const std::map<UInt32, std::string> disassembler_63 = {
-	{0, "BEQ"}, {1, "BNE"},
-	{4, "BLT"}, {5, "BGE"}, {6, "BLTU"}, {7, "BGEU"}
-};
-
-const std::map<UInt32, std::string> disassembler_73 = {
-	{1, "CSRRW"}, {2, "CSRRS"}, {3, "CSRRC"},
-	{5, "CSRRWI"}, {6, "CSRRSI"}, {7, "CSRRCI"}
-};
-
-const std::map<UInt32, std::string> disassembler_73_2 = {
-	{1, "FSFLAGS"}, {2, "FSRM"}, {3, "FSCSR"}
-};
-
-const std::map<UInt32, std::string> disassembler_IntRegABINames = {
-	{0, "zero"}, {1, "ra"}, {2, "fp"}, {3, "s1"}, {4, "s2"}, {5, "s3"}, {6, "s4"}, {7, "s5"},
-	{8, "s6"}, {9, "s7"}, {10, "s8"}, {11, "s9"}, {12, "s10"}, {13, "s11"}, {14, "sp"}, {15, "tp"},
-	{16, "v0"}, {17, "v1"}, {18, "a0"}, {19, "a1"}, {20, "a2"}, {21, "a3"}, {22, "a4"}, {23, "a5"},
-	{24, "a6"}, {25, "a7"}, {26, "t0"}, {27, "t1"}, {28, "t2"}, {29, "t3"}, {30, "t4"}, {31, "gp"}
-};
-
-const std::map<UInt32, std::string> disassembler_FloatRegABINames = {
-	{0, "fs0"}, {1, "fs1"}, {2, "fs2"}, {3, "fs3"}, {4, "fs4"}, {5, "fs5"}, {6, "fs6"}, {7, "fs7"},
-	{8, "fs8"}, {9, "fs9"}, {10, "fs10"}, {11, "fs11"}, {12, "fs12"}, {13, "fs13"}, {14, "fs14"}, {15, "fs15"},
-	{16, "fv0"}, {17, "fv1"}, {18, "fa0"}, {19, "fa1"}, {20, "fa2"}, {21, "fa3"}, {22, "fa4"}, {23, "fa5"},
-	{24, "fa6"}, {25, "fa7"}, {26, "ft0"}, {27, "ft1"}, {28, "ft2"}, {29, "ft3"}, {30, "ft4"}, {31, "ft5"}
-};
 
 
 
@@ -131,28 +16,28 @@ void printSeperator(Disassembler& self) {
 }
 
 void printUInt32(Disassembler& self, UInt32 value) {
-	if(self.flags&Disassembler::FlagDec)
+	if(self.flags&Disassembler::FlagDecimal)
 		sprintf(self.buffer, "%s %d", self.buffer, value);
 	else
 		sprintf(self.buffer, "%s 0x%x", self.buffer, value);
 }
 
 void printInt32(Disassembler& self, Int32 value) {
-	if(self.flags&Disassembler::FlagDec)
+	if(self.flags&Disassembler::FlagDecimal)
 		sprintf(self.buffer, "%s %d", self.buffer, value);
 	else
 		sprintf(self.buffer, "%s %s0x%x", self.buffer, value<0?"-":"", value<0?-(unsigned)value:value);
 }
 
 void printIntRegister(Disassembler& self, UInt8 index) {
-	if(self.flags&Disassembler::FlagABI)
+	if(self.flags&Disassembler::FlagRegisterABI)
 		sprintf(self.buffer, "%s %s", self.buffer, getDisassemblerEntry(disassembler_IntRegABINames, index));
 	else
 		sprintf(self.buffer, "%s x%d", self.buffer, index);
 }
 
 void printFloatRegister(Disassembler& self, UInt8 index) {
-	if(self.flags&Disassembler::FlagABI) {
+	if(self.flags&Disassembler::FlagRegisterABI) {
 		sprintf(self.buffer, "%s %s", self.buffer, getDisassemblerEntry(disassembler_FloatRegABINames, index));
 	}else
 		sprintf(self.buffer, "%s f%d", self.buffer, index);
@@ -229,7 +114,7 @@ void disassembleOpcode13(Disassembler& self, const Instruction& instruction) {
 	UInt32 imm = instruction.imm;
 	switch(instruction.funct[0]) {
 		case 0:
-		if((self.flags&Disassembler::FlagPseudo) && instruction.imm == 0) {
+		if(self.flags&Disassembler::FlagArithmeticPseudo && instruction.imm == 0) {
 			if(instruction.reg[0] == 0) {
 				strcpy(self.buffer, "NOP");
 				return;
@@ -248,7 +133,7 @@ void disassembleOpcode13(Disassembler& self, const Instruction& instruction) {
 		strcpy(self.buffer, "SLTI");
 		break;
 		case 3:
-		if((self.flags&Disassembler::FlagPseudo) && instruction.imm == 1) {
+		if(self.flags&Disassembler::FlagLogicPseudo && instruction.imm == 1) {
 			strcpy(self.buffer, "SEQZ");
 			print_x_x(self, instruction);
 			return;
@@ -256,7 +141,7 @@ void disassembleOpcode13(Disassembler& self, const Instruction& instruction) {
 		strcpy(self.buffer, "SLTIU");
 		break;
 		case 4:
-		if((self.flags&Disassembler::FlagPseudo) && instruction.imm == -1) {
+		if(self.flags&Disassembler::FlagLogicPseudo && instruction.imm == -1) {
 			strcpy(self.buffer, "NOT");
 			print_x_x(self, instruction);
 			return;
@@ -294,7 +179,7 @@ void disassembleOpcode1B(Disassembler& self, const Instruction& instruction) {
 	UInt32 imm = instruction.imm;
 	switch(instruction.funct[0]) {
 		case 0:
-		if((self.flags&Disassembler::FlagPseudo) && imm == 0) {
+		if(self.flags&Disassembler::FlagArithmeticPseudo && imm == 0) {
 			strcpy(self.buffer, "SEXT.W");
 			print_x_x(self, instruction);
 			return;
@@ -391,7 +276,7 @@ void disassembleOpcode33(Disassembler& self, const Instruction& instruction) {
 			strcpy(self.buffer, "SLT");
 			break;
 			case 3:
-			if((self.flags&Disassembler::FlagPseudo) && instruction.reg[1] == 0) {
+			if(self.flags&Disassembler::FlagLogicPseudo && instruction.reg[1] == 0) {
 				strcpy(self.buffer, "SNEZ");
 				printIntRegister(self, instruction.reg[0]);
 				printSeperator(self);
@@ -498,15 +383,27 @@ void disassembleOpcode53(Disassembler& self, const Instruction& instruction) {
 		printFloatRegister(self, instruction.reg[1]);
 		return;
 		case 0x10:
+		if(self.flags&Disassembler::FlagFloatPseudo && instruction.reg[1] == instruction.reg[2]) {
+			strcpy(self.buffer, getDisassemblerEntry(disassembler_53_10_2, instruction.funct[0]));
+			strcat(self.buffer, ".");
+			strcat(self.buffer, type);
+			printFloatRegister(self, instruction.reg[0]);
+			printSeperator(self);
+			printFloatRegister(self, instruction.reg[1]);
+			return;
+		}
 		strcpy(self.buffer, getDisassemblerEntry(disassembler_53_10, instruction.funct[0]));
+		strcat(self.buffer, ".");
 		strcat(self.buffer, type);
 		break;
 		case 0x14:
 		strcpy(self.buffer, getDisassemblerEntry(disassembler_53_14, instruction.funct[0]));
+		strcat(self.buffer, ".");
 		strcat(self.buffer, type);
 		break;
 		case 0x50:
 		strcpy(self.buffer, getDisassemblerEntry(disassembler_53_50, instruction.funct[0]));
+		strcat(self.buffer, ".");
 		strcat(self.buffer, type);
 		break;
 		case 0x60:
@@ -574,7 +471,7 @@ void disassembleOpcode67(Disassembler& self, const Instruction& instruction) {
 }
 
 void disassembleOpcode6F(Disassembler& self, const Instruction& instruction, AddressType address) {
-	if(self.flags&Disassembler::FlagPseudo && instruction.reg[0] == 0)
+	if(self.flags&Disassembler::FlagJumpPseudo && instruction.reg[0] == 0)
 		strcpy(self.buffer, "J");
 	else{
 		strcpy(self.buffer, "JAL");
@@ -616,7 +513,7 @@ void disassembleOpcode73(Disassembler& self, const Instruction& instruction) {
 			throw Exception(Exception::Code::IllegalInstruction);
 		}
 	}else{
-		if(self.flags&Disassembler::FlagCSR) {
+		if(self.flags&Disassembler::FlagCSRPseudo) {
 			switch(instruction.funct[0]) {
 				case 1:
 					if(instruction.imm == 0 || instruction.imm > 3)
@@ -764,7 +661,6 @@ void Disassembler::addFunction(const UInt8* base, const std::string& name, Addre
 		try {
 			instruction.decode32(*reinterpret_cast<const InstructionType*>(base+i));
 			addInstruction(instruction, address+i);
-			//if(instruction.opcode == 0x6F && instruction.reg[0] == 0) break;
 		}catch(Exception e) {
 			instruction.decode32(0x00000013);
 			addInstruction(instruction, address+i);
@@ -932,7 +828,53 @@ bool Assembler::readFromFile(const std::string& path) {
 		std::transform(line.begin(), line.end(), line.begin(), ::toupper);
 
 		if(line[0] == '.') {
-			// TODO
+			std::vector<std::string> arguments;
+			auto seperator = line.rfind(' ');
+			if(seperator != std::string::npos) {
+				std::string token, argumentStr = line.substr(seperator+1);
+				line = line.substr(0, seperator);
+				std::istringstream ss(argumentStr);
+				while(std::getline(ss, token, ','))
+					arguments.push_back(std::trim(token));
+			}
+
+			auto iter = assembler_cmds.find(line);
+			if(iter == assembler_cmds.end()) {
+				printf("Unknown assembler directive %s\n", line.c_str());
+				continue;
+			}
+			switch(iter->second) {
+				case assembler_dir_text:
+				// TODO
+				break;
+				case assembler_dir_data:
+				// TODO
+				break;
+				case assembler_dir_bss:
+				// TODO
+				break;
+				case assembler_dir_global:
+				// TODO
+				break;
+				case assembler_dir_align:
+				// TODO
+				break;
+				case assembler_dir_skip:
+				// TODO
+				break;
+				case assembler_dir_byte:
+				// TODO
+				break;
+				case assembler_dir_half:
+				// TODO
+				break;
+				case assembler_dir_word:
+				// TODO
+				break;
+				case assembler_dir_dword:
+				// TODO
+				break;
+			}
 			continue;
 		}
 

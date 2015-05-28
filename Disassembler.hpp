@@ -4,12 +4,15 @@
 class Disassembler {
 	public:
 	enum {
-		FlagPseudo = 1<<0,
-		FlagCSR = 1<<1,
-		FlagABI = 1<<2,
-		FlagDec = 1<<3,
-		FlagLowerCase = 1<<4,
-		FlagAll = 0xFF
+		FlagArithmeticPseudo = 1<<0,
+		FlagLogicPseudo = 1<<1,
+		FlagFloatPseudo = 1<<2,
+		FlagJumpPseudo = 1<<3,
+		FlagCSRPseudo = 1<<4,
+		FlagRegisterABI = 1<<5,
+		FlagDecimal = 1<<6,
+		FlagLowerCase = 1<<7,
+		FlagAll = (1<<8)-1
 	} flags = FlagAll;
 
 	char buffer[64];
@@ -32,7 +35,6 @@ class Disassembler {
 		}
 		sprintf(buffer, "%s %s", buffer, jumpMarkIter->second.c_str());
 	}
-
 	void addInstruction(const Instruction& instruction, AddressType address);
 	void addFunction(const UInt8* base, const std::string& name, AddressType address, AddressType size);
 	bool writeToFile(const std::string& path);
