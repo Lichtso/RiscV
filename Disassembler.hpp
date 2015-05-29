@@ -16,7 +16,7 @@ class Disassembler {
 	} flags = FlagAll;
 
 	char buffer[64];
-	std::map<AddressType, std::string> instructions;
+	std::map<AddressType, std::string> textSection;
 	std::map<AddressType, std::string> symbols;
 	std::map<AddressType, std::string> jumpMarks;
 
@@ -35,7 +35,8 @@ class Disassembler {
 		}
 		sprintf(buffer, "%s %s", buffer, jumpMarkIter->second.c_str());
 	}
-	void addInstruction(const Instruction& instruction, AddressType address);
+	void addToTextSection(AddressType address);
+	void addInstruction(AddressType address, const Instruction& instruction);
 	void addFunction(const UInt8* base, const std::string& name, AddressType address, AddressType size);
 	bool writeToFile(const std::string& path);
 	bool readFromFile(const std::string& path);
@@ -43,10 +44,12 @@ class Disassembler {
 
 class Assembler {
 	public:
-	std::map<AddressType, UInt32> instructions;
+	AddressType addresses[3];
+	std::unique_ptr<UInt8> sections[3];
 	std::map<AddressType, std::string> jumpMarks;
 
-	void addInstruction(std::string command, AddressType& address);
+	void writeInSection(UInt8 index, UInt8 length, const void* data);
+	void addInstruction(std::string command);
 	bool writeToFile(const std::string& path);
 	bool readFromFile(const std::string& path);
 };

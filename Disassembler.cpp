@@ -588,7 +588,13 @@ void disassembleOpcode73(Disassembler& self, const Instruction& instruction) {
 
 
 
-void Disassembler::addInstruction(const Instruction& instruction, AddressType address) {
+void Disassembler::addToTextSection(AddressType address) {
+	if(flags&Disassembler::FlagLowerCase)
+		std::transform(buffer, buffer+strlen(buffer), buffer, ::tolower);
+	textSection.insert(std::pair<AddressType, std::string>(address, buffer));
+}
+
+void Disassembler::addInstruction(AddressType address, const Instruction& instruction) {
 	switch(instruction.opcode) {
 		case 0x03:
 		disassembleOpcode03(*this, instruction);
@@ -648,9 +654,7 @@ void Disassembler::addInstruction(const Instruction& instruction, AddressType ad
 		disassembleOpcode73(*this, instruction);
 		break;
 	}
-	if(flags&Disassembler::FlagLowerCase)
-		std::transform(buffer, buffer+strlen(buffer), buffer, ::tolower);
-	instructions.insert(std::pair<AddressType, std::string>(address, buffer));
+	addToTextSection(address);
 }
 
 void Disassembler::addFunction(const UInt8* base, const std::string& name, AddressType address, AddressType size) {
@@ -658,29 +662,40 @@ void Disassembler::addFunction(const UInt8* base, const std::string& name, Addre
 
 	Instruction instruction;
 	for(AddressType i = 0; i < size; i += sizeof(InstructionType)) {
+		InstructionType data = *reinterpret_cast<const InstructionType*>(base+i);
 		try {
-			instruction.decode32(*reinterpret_cast<const InstructionType*>(base+i));
-			addInstruction(instruction, address+i);
+			instruction.decode32(data);
+			addInstruction(address+i, instruction);
 		}catch(Exception e) {
-			instruction.decode32(0x00000013);
-			addInstruction(instruction, address+i);
-			printf("Illegal instruction at %llx.\n", address+i);
+			sprintf(buffer, ".word %08x", data);
+			addToTextSection(address+i);
 		}
 	}
 }
 
 bool Disassembler::writeToFile(const std::string& path) {
 	std::ofstream file(path);
-	if(!file.is_open())
+	if(!file.is_open() || textSection.size() == 0)
 		return false;
 
 	file << ".text\n";
-	for(auto& i : instructions) {
+	if(textSection.begin()->first > 0) {
+		sprintf(buffer, (flags&Disassembler::FlagDecimal) ? ".skip %lld" : ".skip %llx", textSection.begin()->first);
+		file << buffer << std::endl;
+	}
+
+	// TODO: Add .global for all functions
+
+	for(auto& i : textSection) {
 		auto jm = jumpMarks.find(i.first);
 		if(jm != jumpMarks.end())
 			file << jm->second << ":\n";
 		file << "\t" << i.second << "\n";
 	}
+
+	// file << ".data\n";
+	// TODO: Add .data section
+
 	file.close();
 	return true;
 }
@@ -777,7 +792,13 @@ bool Disassembler::readFromFile(const std::string& path) {
 
 
 
-void Assembler::addInstruction(std::string command, AddressType& address) {
+void Assembler::writeInSection(UInt8 index, UInt8 length, const void* data) {
+	// TODO Add page based tree
+	memcpy(sections[index].get()+addresses[index], data, length);
+	addresses[index] += length;
+}
+
+void Assembler::addInstruction(std::string command) {
 	auto seperator = command.find(' ');
 	std::string token;
 	std::istringstream ss;
@@ -800,8 +821,8 @@ void Assembler::addInstruction(std::string command, AddressType& address) {
 
 	Instruction instruction;
 	// TODO
-	instructions.insert(std::pair<AddressType, UInt32>(address, instruction.encode32()));
-	address += 4;
+	auto data = instruction.encode32();
+	writeInSection(assembler_dir_text, sizeof(data), &data);
 }
 
 bool Assembler::writeToFile(const std::string& path) {
@@ -814,7 +835,7 @@ bool Assembler::readFromFile(const std::string& path) {
 	if(!file.is_open())
 		return false;
 
-	AddressType address = 0;
+	assembler_dir_type currentSection;
 	for(std::string line; getline(file, line); ) {
 		line = std::trim(line);
 		if(line.size() == 0) continue;
@@ -845,13 +866,9 @@ bool Assembler::readFromFile(const std::string& path) {
 			}
 			switch(iter->second) {
 				case assembler_dir_text:
-				// TODO
-				break;
 				case assembler_dir_data:
-				// TODO
-				break;
 				case assembler_dir_bss:
-				// TODO
+				currentSection = iter->second;
 				break;
 				case assembler_dir_global:
 				// TODO
@@ -863,16 +880,32 @@ bool Assembler::readFromFile(const std::string& path) {
 				// TODO
 				break;
 				case assembler_dir_byte:
-				// TODO
+				for(auto& argument : arguments) {
+					UInt8 data;
+					sscanf(argument.c_str(), "%hhd", &data);
+					writeInSection(currentSection, sizeof(data), &data);
+				}
 				break;
 				case assembler_dir_half:
-				// TODO
+				for(auto& argument : arguments) {
+					UInt16 data;
+					sscanf(argument.c_str(), "%hd", &data);
+					writeInSection(currentSection, sizeof(data), &data);
+				}
 				break;
 				case assembler_dir_word:
-				// TODO
+				for(auto& argument : arguments) {
+					UInt32 data;
+					sscanf(argument.c_str(), "%d", &data);
+					writeInSection(currentSection, sizeof(data), &data);
+				}
 				break;
 				case assembler_dir_dword:
-				// TODO
+				for(auto& argument : arguments) {
+					UInt64 data;
+					sscanf(argument.c_str(), "%lld", &data);
+					writeInSection(currentSection, sizeof(data), &data);
+				}
 				break;
 			}
 			continue;
@@ -881,12 +914,12 @@ bool Assembler::readFromFile(const std::string& path) {
 		seperator = line.rfind(':');
 		if(seperator != std::string::npos) {
 			std::string jumpMark = line.substr(0, seperator);
-			jumpMarks.insert(std::pair<AddressType, std::string>(address, jumpMark));
+			jumpMarks.insert(std::pair<AddressType, std::string>(addresses[currentSection], std::trim(jumpMark)));
 			line = line.substr(seperator+1);
 		}
 
 		if(line.size() == 0) continue;
-		addInstruction(line, address);
+		addInstruction(line);
 	}
 	file.close();
 
