@@ -1,14 +1,29 @@
+/*
+	WARNING:
+
+	The assembler / disassembler was made for testing purpose only.
+	They are highly instable and might produce wrong outputs.
+	Do not use them in production or any other projects!
+*/
+
 #include "AssemblerMnemonics.hpp"
 
 const UInt8 ELF_machine = 243;
 
 
 
-const char* getDisassemblerEntry(const std::map<UInt32, std::string>& map, UInt32 key) {
+const char* getDisassemblerEntry(const std::map<UInt8, std::string>& map, UInt8 key) {
 	auto iter = map.find(key);
 	if(iter == map.end())
 		throw Exception(Exception::Code::IllegalInstruction);
 	return iter->second.c_str();
+}
+
+UInt8 getAssemblerEntry(const std::map<std::string, UInt8>& map, const std::string& key) {
+	auto iter = map.find(key);
+	if(iter == map.end())
+		throw Exception(Exception::Code::IllegalInstruction);
+	return iter->second;
 }
 
 void printSeperator(Disassembler& self) {
@@ -44,7 +59,7 @@ void printFloatRegister(Disassembler& self, UInt8 index) {
 }
 
 void printRoundingMode(Disassembler& self, const Instruction& instruction) {
-	if(instruction.funct[0] <= 4) {
+	if(instruction.funct[1] <= 4) {
 		strcat(self.buffer, ".");
 		strcat(self.buffer, getDisassemblerEntry(disassembler_FloatRoundingModes, instruction.funct[0]));
 	}
@@ -52,7 +67,7 @@ void printRoundingMode(Disassembler& self, const Instruction& instruction) {
 
 void printAtomicMode(Disassembler& self, const Instruction& instruction) {
 	for(UInt8 i = 0; i < 2; ++i)
-		if((instruction.funct[0]>>i)&1) {
+		if((instruction.funct[1]>>i)&1) {
 			strcat(self.buffer, ".");
 			strcat(self.buffer, getDisassemblerEntry(disassembler_2F_2, i));
 		}
@@ -214,7 +229,7 @@ void disassembleOpcode27(Disassembler& self, const Instruction& instruction) {
 }
 
 void disassembleOpcode2F(Disassembler& self, const Instruction& instruction) {
-	switch(instruction.funct[1]&(TrailingBitMask(5)<<2)) {
+	switch(instruction.funct[0]&(TrailingBitMask(5)<<2)) {
 		case 0x00:
 		strcpy(self.buffer, "AMOADD");
 		break;
@@ -224,7 +239,7 @@ void disassembleOpcode2F(Disassembler& self, const Instruction& instruction) {
 		case 0x08:
 		strcpy(self.buffer, "LR");
 		strcat(self.buffer, ".");
-		strcat(self.buffer, getDisassemblerEntry(disassembler_2F, instruction.funct[0]));
+		strcat(self.buffer, getDisassemblerEntry(disassembler_2F, instruction.funct[1]));
 		printAtomicMode(self, instruction);
 		print_x_x(self, instruction);
 		return;
@@ -256,18 +271,18 @@ void disassembleOpcode2F(Disassembler& self, const Instruction& instruction) {
 		throw Exception(Exception::Code::IllegalInstruction);
 	}
 	strcat(self.buffer, ".");
-	strcat(self.buffer, getDisassemblerEntry(disassembler_2F, instruction.funct[0]));
+	strcat(self.buffer, getDisassemblerEntry(disassembler_2F, instruction.funct[1]));
 	printAtomicMode(self, instruction);
 	print_x_x_x(self, instruction);
 }
 
 void disassembleOpcode33(Disassembler& self, const Instruction& instruction) {
-	if(instruction.funct[1] == 1)
-		strcpy(self.buffer, getDisassemblerEntry(disassembler_33, instruction.funct[0]));
+	if(instruction.funct[0] == 1)
+		strcpy(self.buffer, getDisassemblerEntry(disassembler_33, instruction.funct[1]));
 	else
-		switch(instruction.funct[0]) {
+		switch(instruction.funct[1]) {
 			case 0:
-			strcpy(self.buffer, getDisassemblerEntry(disassembler_3X_0, instruction.funct[1]));
+			strcpy(self.buffer, getDisassemblerEntry(disassembler_3X_0, instruction.funct[0]));
 			break;
 			case 1:
 			strcpy(self.buffer, "SLL");
@@ -289,7 +304,7 @@ void disassembleOpcode33(Disassembler& self, const Instruction& instruction) {
 			strcpy(self.buffer, "XOR");
 			break;
 			case 5:
-			strcpy(self.buffer, getDisassemblerEntry(disassembler_3X_5, instruction.funct[1]));
+			strcpy(self.buffer, getDisassemblerEntry(disassembler_3X_5, instruction.funct[0]));
 			break;
 			case 6:
 			strcpy(self.buffer, "OR");
@@ -309,18 +324,18 @@ void disassembleOpcode37(Disassembler& self, const Instruction& instruction) {
 }
 
 void disassembleOpcode3B(Disassembler& self, const Instruction& instruction) {
-	if(instruction.funct[1] == 1) {
-		strcpy(self.buffer, getDisassemblerEntry(disassembler_33, instruction.funct[0]));
+	if(instruction.funct[0] == 1) {
+		strcpy(self.buffer, getDisassemblerEntry(disassembler_33, instruction.funct[1]));
 	}else
-		switch(instruction.funct[0]) {
+		switch(instruction.funct[1]) {
 			case 0:
-			strcpy(self.buffer, getDisassemblerEntry(disassembler_3X_0, instruction.funct[1]));
+			strcpy(self.buffer, getDisassemblerEntry(disassembler_3X_0, instruction.funct[0]));
 			break;
 			case 1:
 			strcpy(self.buffer, "SLL");
 			break;
 			case 5:
-			strcpy(self.buffer, getDisassemblerEntry(disassembler_3X_5, instruction.funct[1]));
+			strcpy(self.buffer, getDisassemblerEntry(disassembler_3X_5, instruction.funct[0]));
 			break;
 			default:
 			throw Exception(Exception::Code::IllegalInstruction);
@@ -332,7 +347,7 @@ void disassembleOpcode3B(Disassembler& self, const Instruction& instruction) {
 void disassembleOpcode4X(Disassembler& self, const Instruction& instruction) {
 	strcpy(self.buffer, getDisassemblerEntry(disassembler_4X, (instruction.opcode>>2)&TrailingBitMask(2)));
 	strcat(self.buffer, ".");
-	strcat(self.buffer, getDisassemblerEntry(disassembler_Float, instruction.funct[1]));
+	strcat(self.buffer, getDisassemblerEntry(disassembler_Float, instruction.funct[0]));
 	printRoundingMode(self, instruction);
 	printFloatRegister(self, instruction.reg[0]);
 	printSeperator(self);
@@ -344,8 +359,8 @@ void disassembleOpcode4X(Disassembler& self, const Instruction& instruction) {
 }
 
 void disassembleOpcode53(Disassembler& self, const Instruction& instruction) {
-	const char* type = getDisassemblerEntry(disassembler_Float, instruction.funct[1]&TrailingBitMask(1));
-	switch(instruction.funct[1]&~TrailingBitMask(1)) {
+	const char* type = getDisassemblerEntry(disassembler_Float, instruction.funct[0]&TrailingBitMask(1));
+	switch(instruction.funct[0]&~TrailingBitMask(1)) {
 		case 0x00:
 		strcpy(self.buffer, "FADD.");
 		strcat(self.buffer, type);
@@ -384,7 +399,7 @@ void disassembleOpcode53(Disassembler& self, const Instruction& instruction) {
 		return;
 		case 0x10:
 		if(self.flags&Disassembler::FlagFloatPseudo && instruction.reg[1] == instruction.reg[2]) {
-			strcpy(self.buffer, getDisassemblerEntry(disassembler_53_10_2, instruction.funct[0]));
+			strcpy(self.buffer, getDisassemblerEntry(disassembler_53_10_2, instruction.funct[1]));
 			strcat(self.buffer, ".");
 			strcat(self.buffer, type);
 			printFloatRegister(self, instruction.reg[0]);
@@ -392,17 +407,17 @@ void disassembleOpcode53(Disassembler& self, const Instruction& instruction) {
 			printFloatRegister(self, instruction.reg[1]);
 			return;
 		}
-		strcpy(self.buffer, getDisassemblerEntry(disassembler_53_10, instruction.funct[0]));
+		strcpy(self.buffer, getDisassemblerEntry(disassembler_53_10, instruction.funct[1]));
 		strcat(self.buffer, ".");
 		strcat(self.buffer, type);
 		break;
 		case 0x14:
-		strcpy(self.buffer, getDisassemblerEntry(disassembler_53_14, instruction.funct[0]));
+		strcpy(self.buffer, getDisassemblerEntry(disassembler_53_14, instruction.funct[1]));
 		strcat(self.buffer, ".");
 		strcat(self.buffer, type);
 		break;
 		case 0x50:
-		strcpy(self.buffer, getDisassemblerEntry(disassembler_53_50, instruction.funct[0]));
+		strcpy(self.buffer, getDisassemblerEntry(disassembler_53_50, instruction.funct[1]));
 		strcat(self.buffer, ".");
 		strcat(self.buffer, type);
 		break;
@@ -427,7 +442,7 @@ void disassembleOpcode53(Disassembler& self, const Instruction& instruction) {
 		printIntRegister(self, instruction.reg[1]);
 		return;
 		case 0x70:
-		strcat(self.buffer, getDisassemblerEntry(disassembler_53_70, instruction.funct[0]));
+		strcat(self.buffer, getDisassemblerEntry(disassembler_53_70, instruction.funct[1]));
 		if(instruction.funct[0] == 0)
 			strcat(self.buffer, ".X");
 		strcat(self.buffer, ".");
@@ -582,8 +597,6 @@ void disassembleOpcode73(Disassembler& self, const Instruction& instruction) {
 			printUInt32(self, instruction.reg[1]);
 		}
 	}
-
-	// TODO: floatStatusFlags[]
 }
 
 
@@ -661,13 +674,13 @@ void Disassembler::addFunction(const UInt8* base, const std::string& name, Addre
 	if(!base) return;
 
 	Instruction instruction;
-	for(AddressType i = 0; i < size; i += sizeof(InstructionType)) {
-		InstructionType data = *reinterpret_cast<const InstructionType*>(base+i);
+	for(AddressType i = 0; i < size; i += sizeof(UInt32)) {
+		UInt32 data = *reinterpret_cast<const UInt32*>(base+i);
 		try {
 			instruction.decode32(data);
 			addInstruction(address+i, instruction);
 		}catch(Exception e) {
-			sprintf(buffer, ".word %08x", data);
+			sprintf(buffer, ".word 0x%08x", data);
 			addToTextSection(address+i);
 		}
 	}
@@ -680,22 +693,20 @@ bool Disassembler::writeToFile(const std::string& path) {
 
 	file << ".text\n";
 	if(textSection.begin()->first > 0) {
-		sprintf(buffer, (flags&Disassembler::FlagDecimal) ? ".skip %lld" : ".skip %llx", textSection.begin()->first);
+		sprintf(buffer, ".skip 0x%llx", textSection.begin()->first);
 		file << buffer << std::endl;
 	}
-
-	// TODO: Add .global for all functions
 
 	for(auto& i : textSection) {
 		auto jm = jumpMarks.find(i.first);
 		if(jm != jumpMarks.end())
 			file << jm->second << ":\n";
+		if(flags&Disassembler::FlagAddresses)
+			file << std::setw(16) << std::setfill('0') << std::hex << i.first;
 		file << "\t" << i.second << "\n";
 	}
 
-	// file << ".data\n";
-	// TODO: Add .data section
-
+	file << extension.str();
 	file.close();
 	return true;
 }
@@ -720,7 +731,7 @@ bool Disassembler::readFromFile(const std::string& path) {
 	if(reader.get_encoding() != ELFDATA2LSB || reader.get_machine() != ELF_machine)
 		return false;
 
-	std::cout << "ELF file class    : ";
+	/*std::cout << "ELF file class    : ";
 	if(reader.get_class() == ELFCLASS32)
 	    std::cout << "ELF32" << std::endl;
 	else
@@ -739,30 +750,42 @@ bool Disassembler::readFromFile(const std::string& path) {
 				<< " 0x"
 				<< pseg->get_memory_size()
 				<< std::endl;
-	}
+	}*/
 
 	std::string name;
 	ELFIO::Elf64_Addr address;
 	ELFIO::Elf_Xword size;
-	unsigned char bind;
-	unsigned char type;
-	ELFIO::Elf_Half section_index;
-	unsigned char other;
+	UInt8 bind, type, other;
+	ELFIO::Elf_Half section_index, textSecIndex = 0, sec_num = reader.sections.size();
 
-	ELFIO::Elf_Half textSecIndex = 0, sec_num = reader.sections.size();
-	std::cout << "Number of sections: " << sec_num << std::endl;
+	//std::cout << "Number of sections: " << sec_num << std::endl;
 	for(unsigned int i = 0; i < sec_num; ++i) {
 		ELFIO::section* psec = reader.sections[i];
-	    std::cout << "  [" << i << "] "
+	    /*std::cout << "  [" << i << "] "
 	              << psec->get_name()
 	              << "\t"
 				  << psec->get_type()
 				  << "\t"
 	              << psec->get_size()
-	              << std::endl;
+	              << std::endl;*/
 
 		if(reader.sections[i]->get_name() == ".text")
 			textSecIndex = i;
+		else if(reader.sections[i]->get_name() == ".data") {
+			if(flags&Disassembler::FlagDataSection) {
+				extension << "\n.data\n";
+				for(unsigned int j = 0; j < psec->get_size(); j += 8) {
+					auto data = reinterpret_cast<const UInt64*>(psec->get_data()+j);
+					if(j%64 == 0) {
+						if(j > 0)
+							extension << "\n";
+						extension << ".dword ";
+					}else
+						extension << ", ";
+					extension << "0x" << std::setw(16) << std::setfill('0') << std::hex << *data;
+				}
+			}
+		}
 
 	    if(psec->get_type() == SHT_SYMTAB) {
 	        const ELFIO::symbol_section_accessor symbolAccessor(reader, psec);
@@ -775,8 +798,8 @@ bool Disassembler::readFromFile(const std::string& path) {
 				std::pair<AddressType, std::string> pair(address, name);
 				jumpMarks.insert(pair);
 				auto result = symbols.insert(pair);
-				if(!result.second)
-					printf("Address already bound %llx %s : %s\n", address, name.c_str(), result.first->second.c_str());
+				//if(!result.second)
+				//	printf("Address already bound %llx %s : %s\n", address, name.c_str(), result.first->second.c_str());
 			}
 
 			for(unsigned int j = 0; j < sym_num; ++j) {
@@ -793,8 +816,14 @@ bool Disassembler::readFromFile(const std::string& path) {
 
 
 void Assembler::writeInSection(UInt8 index, UInt8 length, const void* data) {
-	// TODO Add page based tree
-	memcpy(sections[index].get()+addresses[index], data, length);
+	AddressType ptr = addresses[index]/4096*4096;
+	auto iter = sections[index].find(ptr);
+	if(iter == sections[index].end()) {
+		std::unique_ptr<UInt8> page(new UInt8[4096]);
+		memset(page.get(), 0, 4096);
+		iter = sections[index].insert(std::pair<AddressType, std::unique_ptr<UInt8>>(ptr, std::move(page))).first;
+	}
+	memcpy(iter->second.get()+(addresses[index]-ptr), data, length);
 	addresses[index] += length;
 }
 
@@ -820,9 +849,11 @@ void Assembler::addInstruction(std::string command) {
 		commandParts.push_back(std::trim(token));
 
 	Instruction instruction;
+	instruction.opcode = getAssemblerEntry(assembler_instructions, commandParts[0]);
+
 	// TODO
-	auto data = instruction.encode32();
-	writeInSection(assembler_dir_text, sizeof(data), &data);
+	//auto data = instruction.encode32();
+	//writeInSection(assembler_dir_text, sizeof(data), &data);
 }
 
 bool Assembler::writeToFile(const std::string& path) {
@@ -850,7 +881,7 @@ bool Assembler::readFromFile(const std::string& path) {
 
 		if(line[0] == '.') {
 			std::vector<std::string> arguments;
-			auto seperator = line.rfind(' ');
+			auto seperator = line.find(' ');
 			if(seperator != std::string::npos) {
 				std::string token, argumentStr = line.substr(seperator+1);
 				line = line.substr(0, seperator);
@@ -867,43 +898,41 @@ bool Assembler::readFromFile(const std::string& path) {
 			switch(iter->second) {
 				case assembler_dir_text:
 				case assembler_dir_data:
-				case assembler_dir_bss:
-				currentSection = iter->second;
+					currentSection = iter->second;
 				break;
-				case assembler_dir_global:
-				// TODO
-				break;
-				case assembler_dir_align:
-				// TODO
-				break;
-				case assembler_dir_skip:
-				// TODO
-				break;
+				case assembler_dir_align: {
+					addresses[currentSection] = (addresses[currentSection]/4+1)*4;
+				} break;
+				case assembler_dir_skip: {
+					UInt64 data;
+					sscanf(arguments[0].c_str(), "0X%llx", &data);
+					addresses[currentSection] += data;
+				} break;
 				case assembler_dir_byte:
 				for(auto& argument : arguments) {
 					UInt8 data;
-					sscanf(argument.c_str(), "%hhd", &data);
+					sscanf(argument.c_str(), "0X%hhx", &data);
 					writeInSection(currentSection, sizeof(data), &data);
 				}
 				break;
 				case assembler_dir_half:
 				for(auto& argument : arguments) {
 					UInt16 data;
-					sscanf(argument.c_str(), "%hd", &data);
+					sscanf(argument.c_str(), "0X%hx", &data);
 					writeInSection(currentSection, sizeof(data), &data);
 				}
 				break;
 				case assembler_dir_word:
 				for(auto& argument : arguments) {
 					UInt32 data;
-					sscanf(argument.c_str(), "%d", &data);
+					sscanf(argument.c_str(), "0X%x", &data);
 					writeInSection(currentSection, sizeof(data), &data);
 				}
 				break;
 				case assembler_dir_dword:
 				for(auto& argument : arguments) {
 					UInt64 data;
-					sscanf(argument.c_str(), "%lld", &data);
+					sscanf(argument.c_str(), "0X%llx", &data);
 					writeInSection(currentSection, sizeof(data), &data);
 				}
 				break;

@@ -3,6 +3,7 @@
 #include <type_traits>
 #include <functional>
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 #include <sstream>
 #include <memory>
@@ -41,4 +42,3 @@ namespace std {
 }
 
 typedef UInt64 AddressType;
-typedef UInt32 InstructionType;

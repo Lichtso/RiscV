@@ -1,3 +1,11 @@
+/*
+	WARNING:
+
+	The assembler / disassembler was made for testing purpose only.
+	They are highly instable and might produce wrong outputs.
+	Do not use them in production or any other projects!
+*/
+
 #pragma once
 #include "Instruction.hpp"
 
@@ -12,13 +20,16 @@ class Disassembler {
 		FlagRegisterABI = 1<<5,
 		FlagDecimal = 1<<6,
 		FlagLowerCase = 1<<7,
-		FlagAll = (1<<8)-1
+		FlagAddresses = 1<<8,
+		FlagDataSection = 1<<9,
+		FlagAll = (1<<10)-1
 	} flags = FlagAll;
 
 	char buffer[64];
 	std::map<AddressType, std::string> textSection;
 	std::map<AddressType, std::string> symbols;
 	std::map<AddressType, std::string> jumpMarks;
+	std::stringstream extension;
 
 	void addJumpMark(AddressType address) {
 		auto jumpMarkIter = jumpMarks.find(address);
@@ -45,7 +56,7 @@ class Disassembler {
 class Assembler {
 	public:
 	AddressType addresses[3];
-	std::unique_ptr<UInt8> sections[3];
+	std::map<AddressType, std::unique_ptr<UInt8>> sections[3];
 	std::map<AddressType, std::string> jumpMarks;
 
 	void writeInSection(UInt8 index, UInt8 length, const void* data);

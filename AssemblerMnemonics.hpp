@@ -1,110 +1,118 @@
+/*
+	WARNING:
+
+	The assembler / disassembler was made for testing purpose only.
+	They are highly instable and might produce wrong outputs.
+	Do not use them in production or any other projects!
+*/
+
 #include "Disassembler.hpp"
 #include <elfio/elfio.hpp>
 
-const std::map<UInt32, std::string> disassembler_03 = {
+const std::map<UInt8, std::string> disassembler_03 = {
 	{0, "LB"}, {1, "LH"}, {2, "LW"}, {3, "LD"},
 	{4, "LBU"}, {5, "LHU"}, {6, "LWU"}
 };
 
-const std::map<UInt32, std::string> disassembler_07 = {
+const std::map<UInt8, std::string> disassembler_07 = {
 	{2, "FLW"}, {3, "FLD"}
 };
 
-const std::map<UInt32, std::string> disassembler_0F = {
+const std::map<UInt8, std::string> disassembler_0F = {
 	{0, "W"}, {1, "R"}, {2, "O"}, {3, "I"}
 };
 
-const std::map<UInt32, std::string> disassembler_23 = {
+const std::map<UInt8, std::string> disassembler_23 = {
 	{0, "SB"}, {1, "SH"}, {2, "SW"}, {3, "SD"}
 };
 
-const std::map<UInt32, std::string> disassembler_27 = {
+const std::map<UInt8, std::string> disassembler_27 = {
 	{2, "FSW"}, {3, "FSD"}
 };
 
-const std::map<UInt32, std::string> disassembler_2F = {
+const std::map<UInt8, std::string> disassembler_2F = {
 	{2, "W"}, {3, "D"}
 };
 
-const std::map<UInt32, std::string> disassembler_2F_2 = {
+const std::map<UInt8, std::string> disassembler_2F_2 = {
 	{0, "RL"}, {1, "AQ"}
 };
 
-const std::map<UInt32, std::string> disassembler_33 = {
+const std::map<UInt8, std::string> disassembler_33 = {
 	{0, "MUL"}, {1, "MULH"}, {2, "MULHSU"}, {3, "MULHU"},
 	{4, "DIV"}, {5, "DIVU"}, {6, "REM"}, {7, "REMU"}
 };
 
-const std::map<UInt32, std::string> disassembler_3X_0 = {
+const std::map<UInt8, std::string> disassembler_3X_0 = {
 	{0, "ADD"}, {32, "SUB"}
 };
 
-const std::map<UInt32, std::string> disassembler_3X_5 = {
+const std::map<UInt8, std::string> disassembler_3X_5 = {
 	{0, "SRL"}, {32, "SRA"}
 };
 
-const std::map<UInt32, std::string> disassembler_4X = {
+const std::map<UInt8, std::string> disassembler_4X = {
 	{0, "FMADD"}, {1, "FMSUB"}, {2, "FNMSUB"}, {3, "FNMADD"}
 };
 
-const std::map<UInt32, std::string> disassembler_Float = {
+const std::map<UInt8, std::string> disassembler_Float = {
 	{0, "S"}, {1, "D"}
 };
 
-const std::map<UInt32, std::string> disassembler_FloatStatusFlags = {
+const std::map<UInt8, std::string> disassembler_FloatStatusFlags = {
 	{0, "NX"}, {1, "UF"}, {2, "OF"}, {3, "DZ"}, {4, "NV"}
 };
 
-const std::map<UInt32, std::string> disassembler_FloatRoundingModes = {
+const std::map<UInt8, std::string> disassembler_FloatRoundingModes = {
 	{0, "RNE"}, {1, "RTZ"}, {2, "RDN"}, {3, "RUP"}, {4, "RMM"}
 };
 
-const std::map<UInt32, std::string> disassembler_53_10 = {
+const std::map<UInt8, std::string> disassembler_53_10 = {
 	{0, "FSGNJ"}, {1, "FSGNJN"}, {2, "FSGNJX"}
 };
 
-const std::map<UInt32, std::string> disassembler_53_10_2 = {
+const std::map<UInt8, std::string> disassembler_53_10_2 = {
 	{0, "FMV"}, {1, "FNEG"}, {2, "FABS"}
 };
 
-const std::map<UInt32, std::string> disassembler_53_14 = {
+const std::map<UInt8, std::string> disassembler_53_14 = {
 	{0, "FMIN"}, {1, "FMAX"}
 };
 
-const std::map<UInt32, std::string> disassembler_53_50 = {
+const std::map<UInt8, std::string> disassembler_53_50 = {
 	{0, "FLE"}, {1, "FLT"}, {2, "FEQ"}
 };
 
-const std::map<UInt32, std::string> disassembler_53_CVT = {
+const std::map<UInt8, std::string> disassembler_53_CVT = {
 	{0, "W"}, {1, "WU"}, {2, "L"}, {3, "LU"}
 };
 
-const std::map<UInt32, std::string> disassembler_53_70 = {
+const std::map<UInt8, std::string> disassembler_53_70 = {
 	{0, "FMV"}, {1, "FCLASS"}
 };
 
-const std::map<UInt32, std::string> disassembler_63 = {
+const std::map<UInt8, std::string> disassembler_63 = {
 	{0, "BEQ"}, {1, "BNE"},
 	{4, "BLT"}, {5, "BGE"}, {6, "BLTU"}, {7, "BGEU"}
 };
 
-const std::map<UInt32, std::string> disassembler_73 = {
+const std::map<UInt8, std::string> disassembler_73 = {
 	{1, "CSRRW"}, {2, "CSRRS"}, {3, "CSRRC"},
 	{5, "CSRRWI"}, {6, "CSRRSI"}, {7, "CSRRCI"}
 };
 
-const std::map<UInt32, std::string> disassembler_73_2 = {
+const std::map<UInt8, std::string> disassembler_73_2 = {
 	{1, "FSFLAGS"}, {2, "FSRM"}, {3, "FSCSR"}
 };
 
-const std::map<UInt32, std::string> disassembler_IntRegABINames = {
+const std::map<UInt8, std::string> disassembler_IntRegABINames = {
 	{0, "zero"}, {1, "ra"}, {2, "fp"}, {3, "s1"}, {4, "s2"}, {5, "s3"}, {6, "s4"}, {7, "s5"},
 	{8, "s6"}, {9, "s7"}, {10, "s8"}, {11, "s9"}, {12, "s10"}, {13, "s11"}, {14, "sp"}, {15, "tp"},
 	{16, "v0"}, {17, "v1"}, {18, "a0"}, {19, "a1"}, {20, "a2"}, {21, "a3"}, {22, "a4"}, {23, "a5"},
 	{24, "a6"}, {25, "a7"}, {26, "t0"}, {27, "t1"}, {28, "t2"}, {29, "t3"}, {30, "t4"}, {31, "gp"}
 };
 
-const std::map<UInt32, std::string> disassembler_FloatRegABINames = {
+const std::map<UInt8, std::string> disassembler_FloatRegABINames = {
 	{0, "fs0"}, {1, "fs1"}, {2, "fs2"}, {3, "fs3"}, {4, "fs4"}, {5, "fs5"}, {6, "fs6"}, {7, "fs7"},
 	{8, "fs8"}, {9, "fs9"}, {10, "fs10"}, {11, "fs11"}, {12, "fs12"}, {13, "fs13"}, {14, "fs14"}, {15, "fs15"},
 	{16, "fv0"}, {17, "fv1"}, {18, "fa0"}, {19, "fa1"}, {20, "fa2"}, {21, "fa3"}, {22, "fa4"}, {23, "fa5"},
@@ -114,8 +122,6 @@ const std::map<UInt32, std::string> disassembler_FloatRegABINames = {
 enum assembler_dir_type {
 	assembler_dir_text,
 	assembler_dir_data,
-	assembler_dir_bss,
-	assembler_dir_global,
 	assembler_dir_align,
 	assembler_dir_skip,
 	assembler_dir_byte,
@@ -125,19 +131,17 @@ enum assembler_dir_type {
 };
 
 const std::map<std::string, assembler_dir_type> assembler_cmds = {
-	{".text", assembler_dir_text},
-	{".data", assembler_dir_data},
-	{".bss", assembler_dir_bss},
-	{".global", assembler_dir_global},
-	{".align", assembler_dir_align},
-	{".skip", assembler_dir_skip},
-	{".byte", assembler_dir_byte},
-	{".half", assembler_dir_half},
-	{".word", assembler_dir_word},
-	{".dword", assembler_dir_dword}
+	{".TEXT", assembler_dir_text},
+	{".DATA", assembler_dir_data},
+	{".ALIGN", assembler_dir_align},
+	{".SKIP", assembler_dir_skip},
+	{".BYTE", assembler_dir_byte},
+	{".HALF", assembler_dir_half},
+	{".WORD", assembler_dir_word},
+	{".DWORD", assembler_dir_dword}
 };
 
-const std::map<std::string, UInt8> assembler = {
+const std::map<std::string, UInt8> assembler_instructions = {
 	{"LB", 0x03},
 	{"LH", 0x03},
 	{"LW", 0x03},
