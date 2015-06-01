@@ -10,11 +10,24 @@
 #include <vector>
 #include <set>
 #include <map>
+#include <inttypes.h>
 
-typedef unsigned char UInt8; typedef char Int8;
-typedef unsigned short int UInt16; typedef short int Int16;
-typedef unsigned int UInt32; typedef int Int32; typedef float Float32;
-typedef unsigned long long int UInt64; typedef long long int Int64; typedef double Float64;
+typedef __uint8_t UInt8;
+typedef __int8_t Int8;
+
+typedef __uint16_t UInt16;
+typedef __int16_t Int16;
+
+typedef __uint32_t UInt32;
+typedef __int32_t Int32;
+typedef float Float32;
+
+typedef __uint64_t UInt64;
+typedef __int64_t Int64;
+typedef double Float64;
+
+typedef __uint128_t UInt128;
+typedef __int128_t Int128;
 
 namespace std {
 	template<bool condition, typename TrueType, TrueType trueValue, typename FalseType, FalseType falseValue>

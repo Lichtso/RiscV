@@ -21,3 +21,4 @@ class Instruction {
 
 UInt64 TrailingBitMask(UInt8 len);
 UInt64 getBitsFrom(UInt64 data, UInt8 at, UInt8 len);
+UInt64 setBitsAt(UInt64 data, UInt8 at, UInt8 len);

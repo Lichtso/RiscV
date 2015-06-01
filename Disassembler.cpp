@@ -164,7 +164,7 @@ void disassembleOpcode13(Disassembler& self, const Instruction& instruction) {
 		strcpy(self.buffer, "XORI");
 		break;
 		case 5:
-		if((imm&(1<<10)) == 0)
+		if((imm&(1ULL<<10)) == 0)
 			strcpy(self.buffer, "SRLI");
 		else{
 			strcpy(self.buffer, "SRAI");
@@ -205,7 +205,7 @@ void disassembleOpcode1B(Disassembler& self, const Instruction& instruction) {
 		strcpy(self.buffer, "SLLIW");
 		break;
 		case 5:
-		if((imm&(1<<10)) == 0)
+		if((imm&(1ULL<<10)) == 0)
 			strcpy(self.buffer, "SRLIW");
 		else{
 			strcpy(self.buffer, "SRAIW");

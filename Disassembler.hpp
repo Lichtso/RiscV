@@ -12,17 +12,17 @@
 class Disassembler {
 	public:
 	enum {
-		FlagArithmeticPseudo = 1<<0,
-		FlagLogicPseudo = 1<<1,
-		FlagFloatPseudo = 1<<2,
-		FlagJumpPseudo = 1<<3,
-		FlagCSRPseudo = 1<<4,
-		FlagRegisterABI = 1<<5,
-		FlagDecimal = 1<<6,
-		FlagLowerCase = 1<<7,
-		FlagAddresses = 1<<8,
-		FlagDataSection = 1<<9,
-		FlagAll = (1<<10)-1
+		FlagArithmeticPseudo = 1U<<0,
+		FlagLogicPseudo = 1U<<1,
+		FlagFloatPseudo = 1U<<2,
+		FlagJumpPseudo = 1U<<3,
+		FlagCSRPseudo = 1U<<4,
+		FlagRegisterABI = 1U<<5,
+		FlagDecimal = 1U<<6,
+		FlagLowerCase = 1U<<7,
+		FlagAddresses = 1U<<8,
+		FlagDataSection = 1U<<9,
+		FlagAll = (1U<<10)-1
 	} flags = FlagAll;
 
 	char buffer[64];

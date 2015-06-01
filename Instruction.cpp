@@ -8,6 +8,10 @@ UInt64 getBitsFrom(UInt64 data, UInt8 at, UInt8 len) {
 	return (data>>at)&TrailingBitMask(len);
 }
 
+UInt64 setBitsAt(UInt64 data, UInt8 at, UInt8 len) {
+	return (data&TrailingBitMask(len))<<at;
+}
+
 template<typename type>
 type readBitsFrom(type& data, UInt8 bits) {
 	type result = data&TrailingBitMask(bits);
