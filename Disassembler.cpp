@@ -187,7 +187,7 @@ void disassembleOpcode17(Disassembler& self, const Instruction& instruction, Add
 	strcpy(self.buffer, "AUIPC");
 	printIntRegister(self, instruction.reg[0]);
 	printSeperator(self);
-	printInt32(self, static_cast<Int32>(instruction.imm));
+	printInt32(self, instruction.imm);
 }
 
 void disassembleOpcode1B(Disassembler& self, const Instruction& instruction) {
@@ -473,7 +473,7 @@ void disassembleOpcode63(Disassembler& self, const Instruction& instruction, Add
 	strcpy(self.buffer, getDisassemblerEntry(disassembler_63, instruction.funct[0]));
 	print_x_x(self, instruction, 1);
 	printSeperator(self);
-	self.addJumpMark(address+static_cast<Int32>(instruction.imm));
+	self.addJumpMark(address+instruction.imm);
 }
 
 void disassembleOpcode67(Disassembler& self, const Instruction& instruction) {
@@ -482,7 +482,7 @@ void disassembleOpcode67(Disassembler& self, const Instruction& instruction) {
 	printSeperator(self);
 	printIntRegister(self, instruction.reg[1]);
 	printSeperator(self);
-	printInt32(self, static_cast<Int32>(instruction.imm));
+	printInt32(self, instruction.imm);
 }
 
 void disassembleOpcode6F(Disassembler& self, const Instruction& instruction, AddressType address) {
@@ -493,7 +493,7 @@ void disassembleOpcode6F(Disassembler& self, const Instruction& instruction, Add
 		printIntRegister(self, instruction.reg[0]);
 		printSeperator(self);
 	}
-	self.addJumpMark(address+static_cast<Int32>(instruction.imm));
+	self.addJumpMark(address+instruction.imm);
 }
 
 void disassembleOpcode73(Disassembler& self, const Instruction& instruction) {

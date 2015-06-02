@@ -8,13 +8,14 @@ UInt64 getBitsFrom(UInt64 data, UInt8 at, UInt8 len) {
 	return (data>>at)&TrailingBitMask(len);
 }
 
-UInt64 setBitsAt(UInt64 data, UInt8 at, UInt8 len) {
-	return (data&TrailingBitMask(len))<<at;
+void setBitsAt(UInt64& in, UInt64 data, UInt8 at, UInt8 len) {
+	in &= (~TrailingBitMask(len))<<at;
+	in |= (data&TrailingBitMask(len))<<at;
 }
 
 template<typename type>
-type readBitsFrom(type& data, UInt8 bits) {
-	type result = data&TrailingBitMask(bits);
+UInt32 readBitsFrom(type& data, UInt8 bits) {
+	UInt32 result = data&TrailingBitMask(bits);
 	data >>= bits;
 	return result;
 }
@@ -26,17 +27,17 @@ void writeBitsTo(type& data, UInt8 bits, UInt32 content) {
 }
 
 template<typename type>
+void writeTruncatedBitsTo(type& data, UInt8 bits, UInt32 content) {
+	data <<= bits;
+	data |= content&TrailingBitMask(bits);
+}
+
+template<typename type>
 type moveBitsFromTo(type data, UInt8 bits, UInt8 from, UInt8 to) {
 	data = (from > to)
 		? data>>(from-to)
 		: data<<(to-from);
 	return data&(TrailingBitMask(bits)<<to);
-}
-
-template<typename type>
-void writeTruncatedBitsTo(type& data, UInt8 bits, UInt32 content) {
-	data <<= bits;
-	data |= content&TrailingBitMask(bits);
 }
 
 
@@ -297,8 +298,8 @@ void decodeTypeI(Instruction& self, UInt32 data) {
 	self.reg[0] = readBitsFrom(data, 5);
 	self.funct[0] = readBitsFrom(data, 3);
 	self.reg[1] = readBitsFrom(data, 5);
-	self.imm = readBitsFrom(data, 12);
-	self.imm |= data*~TrailingBitMask(20);
+	self.imm = readBitsFrom(data, 11);
+	self.imm |= data*~TrailingBitMask(11);
 }
 
 void decodeTypeS(Instruction& self, UInt32 data) {
@@ -306,8 +307,8 @@ void decodeTypeS(Instruction& self, UInt32 data) {
 	self.funct[0] = readBitsFrom(data, 3);
 	self.reg[1] = readBitsFrom(data, 5);
 	self.reg[2] = readBitsFrom(data, 5);
-	self.imm |= readBitsFrom(data, 7)<<5;
-	self.imm |= data*~TrailingBitMask(20);
+	self.imm |= readBitsFrom(data, 6)<<5;
+	self.imm |= data*~TrailingBitMask(11);
 }
 
 void decodeTypeSB(Instruction& self, UInt32 data) {
@@ -325,7 +326,7 @@ void decodeTypeUJ(Instruction& self, UInt32 data) {
 	decodeTypeU(self, data);
 	self.imm |= moveBitsFromTo(self.imm, 1, 20, 11);
 	self.imm |= moveBitsFromTo(self.imm, 10, 21, 1);
-	self.imm = (self.imm&TrailingBitMask(20))|((self.imm>>31)*~TrailingBitMask(20));
+	self.imm = (self.imm&TrailingBitMask(20))|((self.imm>>31)&~TrailingBitMask(20));
 }
 
 UInt32 encodeTypeR(const Instruction& self) {

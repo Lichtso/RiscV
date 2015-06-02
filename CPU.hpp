@@ -63,6 +63,13 @@ class CPU {
     } regF[32];
     std::map<UInt16, UIntType> csr;
 
+    constexpr UInt8 getLevels() {
+        if(EXT&H_HypervisorMode) return 4;
+        if(EXT&S_SupervisorMode) return 3;
+        if(EXT&U_UserMode) return 2;
+        return 1;
+    }
+
     void reset() {
         memset(regX, 0, sizeof(regX));
         memset(regF, 0, sizeof(regF));
@@ -110,28 +117,15 @@ class CPU {
         csr[csr_stimehw] = 0; // TODO
 
         {
-            UIntType value;
-            switch(XLEN) {
-                case 32:
-                    value = 0; // TODO Find out what RV32E is
-                break;
-                case 64:
-                    value = 2;
-                break;
-                case 128:
-                    value = 3;
-                break;
-            }
-            value <<= (XLEN-2);
-            value |= setBitsAt(XLEN, 26, XLEN-28);
-            value |= setBitsAt(EXT, 0, 26);
-            csr[csr_mcpuid] = value;
+            UIntType mstatus = 6;
+            for(UInt8 l = 1; l < getLevels(); ++l)
+                mstatus |= 1<<(l*3);
+            // TODO XS, VM, SD
+            csr[csr_mstatus] = mstatus;
         }
+        csr[csr_mtvec] = 0x100;
+        pc = csr[csr_mtvec]+0x100;
 
-        csr[csr_mimpid] = 0; // TODO
-        csr[csr_mhartid] = 0; // TODO
-        csr[csr_mstatus] = 0; // TODO
-        csr[csr_mtvec] = 0; // TODO
         csr[csr_mtdeleg] = 0; // TODO
         csr[csr_mie] = 0; // TODO
         csr[csr_mtimecmp] = 0; // TODO
@@ -154,13 +148,34 @@ class CPU {
         csr[csr_mfromhost] = 0; // TODO
     }
 
-    CPU() {
+    CPU(UIntType index = 0) {
         reset();
+
+        UIntType mcpuid;
+        switch(XLEN) {
+            case 32:
+                mcpuid = 0; // TODO Find out what RV32E is
+            break;
+            case 64:
+                mcpuid = 2;
+            break;
+            case 128:
+                mcpuid = 3;
+            break;
+        }
+        mcpuid <<= (XLEN-2);
+        setBitsAt(mcpuid, XLEN, 26, XLEN-28);
+        setBitsAt(mcpuid, EXT, 0, 26);
+        csr[csr_mcpuid] = mcpuid;
+
+        csr[csr_mimpid] = 0; // TODO
+        csr[csr_mhartid] = index;
     }
 
     void dump(std::ostream& out) {
         out << std::setfill('0') << std::hex;
-        for(UInt8 i = 0; i < 32; ++i)
+        out << "pc : " << std::setw(16) << pc << std::endl;
+        for(UInt8 i = 1; i < 32; ++i)
             out << std::setw(2) << static_cast<UInt16>(i) << " : " << std::setw(16) << regX[i].U << std::endl;
         for(UInt8 i = 0; i < 32; ++i)
             out << std::setw(2) << static_cast<UInt16>(i) << " : " << regF[i].F << std::endl;
@@ -193,10 +208,6 @@ class CPU {
 
     UIntType readCSR(UInt16 index) {
         return csr[index];
-    }
-
-    PrivilegeMode readPM(UInt8 index = 0) {
-        return (PrivilegeMode)getBitsFrom(readCSR(csr_mstatus), index*3+1, 2);
     }
 
     void writeRegXU(UInt8 index, UIntType value) {
@@ -243,7 +254,7 @@ class CPU {
     template<typename PteType, UInt8 MaxLen, UInt8 MinLen, UInt8 MaxLevel>
     AddressType translatePaged(PrivilegeMode mode, MemoryAccessType mat, UIntType src) {
         UInt8 type, i = MaxLevel, offsetLen = 12;
-        AddressType dst = readCSR(csr_sptbr);
+        AddressType dst = csr[csr_sptbr];
         PteType pte;
 
         // TODO: csr_sasid
@@ -306,14 +317,11 @@ class CPU {
     }
 
     AddressType translate(MemoryAccessType mat, UIntType src) {
-        UIntType mstatus = readCSR(csr_mstatus);
-        UInt8 mPrv = getBitsFrom(mstatus, 16, 1) & (mat!=FetchInstruction);
-        PrivilegeMode mode = readPM(mPrv);
-        if(mode == Supervisor) {
-            UIntType status = readCSR(csr_sstatus);
-            if(getBitsFrom(status, 16, 1) & (mat!=FetchInstruction))
-                mode = (PrivilegeMode)getBitsFrom(status, 4, 1);
-        }
+        UIntType mstatus = csr[csr_mstatus];
+        bool mPrv = getBitsFrom(mstatus, 16, 1);
+        PrivilegeMode mode = (PrivilegeMode)getBitsFrom(mstatus, 1, 2);
+        if(mode != Machine || mat != FetchInstruction || mPrv)
+            mode = (PrivilegeMode)getBitsFrom(mstatus, 4, 2);
 
         AddressType dst;
         switch(getBitsFrom(mstatus, 17, 5)) {
@@ -321,9 +329,9 @@ class CPU {
                 dst = src;
             break;
             case 1: // Mbb
-                if(src >= readCSR(csr_mbound))
+                if(src >= csr[csr_mbound])
                     throw MemoryAccessException((Exception::Code)(mat+1), src);
-                dst = src+readCSR(csr_mbase);
+                dst = src+csr[csr_mbase];
             break;
             case 2: { // Mbbid
                 UIntType halfVAS = 1ULL<<(XLEN-1);
@@ -331,13 +339,13 @@ class CPU {
                     if(src < halfVAS)
                         throw MemoryAccessException((Exception::Code)(mat+1), src);
                     src -= halfVAS;
-                    if(src >= readCSR(csr_mibound))
+                    if(src >= csr[csr_mibound])
                         throw MemoryAccessException((Exception::Code)(mat+1), src);
-                    dst = src+readCSR(csr_mibase);
+                    dst = src+csr[csr_mibase];
                 }else{
-                    if(src >= halfVAS || src >= readCSR(csr_mdbound))
+                    if(src >= halfVAS || src >= csr[csr_mdbound])
                         throw MemoryAccessException((Exception::Code)(mat+1), src);
-                    dst = src+readCSR(csr_mdbase);
+                    dst = src+csr[csr_mdbase];
                 }
             } break;
             case 8: // Sv32
@@ -359,7 +367,7 @@ class CPU {
         return dst;
     }
 
-    void executeOpcode03(Instruction& instruction) {
+    void executeOpcode03(const Instruction& instruction) {
         UIntType address = readRegXU(instruction.reg[1])+instruction.imm;
         switch(instruction.funct[0]) {
             case 0: { // LB rd,rs1,imm
@@ -406,7 +414,7 @@ class CPU {
         }
     }
 
-    void executeOpcode07(Instruction& instruction) {
+    void executeOpcode07(const Instruction& instruction) {
         if(!(EXT&F_Float))
             throw Exception(Exception::Code::IllegalInstruction);
         UIntType address = readRegXU(instruction.reg[1])+instruction.imm;
@@ -426,7 +434,7 @@ class CPU {
         }
     }
 
-    void executeOpcode0F(Instruction& instruction) {
+    void executeOpcode0F(const Instruction& instruction) {
         /* I-Type
         FENCE
         FENCE.I
@@ -434,35 +442,35 @@ class CPU {
         // TODO : Pipeline, Cache
     }
 
-    void executeOpcode13(Instruction& instruction) {
+    void executeOpcode13(const Instruction& instruction) {
         switch(instruction.funct[0]) {
             case 0: //ADDI rd,rs1,imm
                 writeRegXU(instruction.reg[0], readRegXU(instruction.reg[1])+instruction.imm);
             break;
-            case 1: //SLLI rd,rs1,shamt
-                if(XLEN < 64 && instruction.imm&(1ULL<<5))
+            case 1: { //SLLI rd,rs1,shamt
+                if(XLEN < 64 && getBitsFrom(instruction.imm, 5, 1))
                     throw Exception(Exception::Code::IllegalInstruction);
-                instruction.imm &= (XLEN < 64) ? TrailingBitMask(5) : TrailingBitMask(6);
-                writeRegXU(instruction.reg[0], readRegXU(instruction.reg[1])<<instruction.imm);
-            break;
+                UIntType shift = instruction.imm&TrailingBitMask((XLEN < 64)?5:6);
+                writeRegXU(instruction.reg[0], readRegXU(instruction.reg[1])<<shift);
+            } break;
             case 2: //SLTI rd,rs1,imm
-                writeRegXU(instruction.reg[0], (readRegXI(instruction.reg[1]) < static_cast<Int32>(instruction.imm)) ? 1 : 0);
+                writeRegXU(instruction.reg[0], (readRegXI(instruction.reg[1]) < instruction.imm) ? 1 : 0);
             break;
             case 3: //SLTIU rd,rs1,imm
-                writeRegXU(instruction.reg[0], (readRegXU(instruction.reg[1]) < instruction.imm) ? 1 : 0);
+                writeRegXU(instruction.reg[0], (readRegXU(instruction.reg[1]) < static_cast<UInt32>(instruction.imm)) ? 1 : 0);
             break;
             case 4: //XORI rd,rs1,imm
                 writeRegXU(instruction.reg[0], readRegXU(instruction.reg[1])^instruction.imm);
             break;
             case 5: {
-                if(XLEN < 64 && instruction.imm&(1ULL<<5))
+                if(XLEN < 64 && getBitsFrom(instruction.imm, 5, 1))
                     throw Exception(Exception::Code::IllegalInstruction);
-                bool arithmetic = instruction.imm&(1ULL<<10);
-                instruction.imm &= (XLEN < 64) ? TrailingBitMask(5) : TrailingBitMask(6);
+                bool arithmetic = getBitsFrom(instruction.imm, 10, 1);
+                UIntType shift = instruction.imm&TrailingBitMask((XLEN < 64)?5:6);
                 if(arithmetic) //SRAI rd,rs1,shamt
-                    writeRegXI(instruction.reg[0], readRegXI(instruction.reg[1])>>instruction.imm);
+                    writeRegXI(instruction.reg[0], readRegXI(instruction.reg[1])>>shift);
                 else //SRLI rd,rs1,shamt
-                    writeRegXU(instruction.reg[0], readRegXU(instruction.reg[1])>>instruction.imm);
+                    writeRegXU(instruction.reg[0], readRegXU(instruction.reg[1])>>shift);
             } break;
             case 6: //ORI rd,rs1,imm
                 writeRegXU(instruction.reg[0], readRegXU(instruction.reg[1])|instruction.imm);
@@ -473,38 +481,38 @@ class CPU {
         }
     }
 
-    void executeOpcode17(Instruction& instruction) {
+    void executeOpcode17(const Instruction& instruction) {
         // AUIPC rd,imm
         writeRegXU(instruction.reg[0], pc+instruction.imm);
     }
 
-    void executeOpcode1B(Instruction& instruction) {
+    void executeOpcode1B(const Instruction& instruction) {
         if(XLEN < 64)
             throw Exception(Exception::Code::IllegalInstruction);
         switch(instruction.funct[0]) {
             case 0: //ADDIW rd,rs1,imm (64)
                 writeRegXU(instruction.reg[0], static_cast<UInt32>(readRegXU(instruction.reg[1])+instruction.imm));
             break;
-            case 1: //SLLIW rd,rs1,shamt (64)
+            case 1: { //SLLIW rd,rs1,shamt (64)
                 if(instruction.imm&(1ULL<<5))
                     throw Exception(Exception::Code::IllegalInstruction);
-                instruction.imm &= TrailingBitMask(5);
-                writeRegXU(instruction.reg[0], static_cast<UInt32>(readRegXU(instruction.reg[1])<<instruction.imm));
-            break;
+                UIntType shift = instruction.imm&TrailingBitMask(5);
+                writeRegXU(instruction.reg[0], static_cast<UInt32>(readRegXU(instruction.reg[1])<<shift));
+            } break;
             case 5: {
                 if(instruction.imm&(1ULL<<5))
                     throw Exception(Exception::Code::IllegalInstruction);
                 bool arithmetic = instruction.imm&(1ULL<<10);
-                instruction.imm &= TrailingBitMask(5);
+                UIntType shift = instruction.imm&TrailingBitMask(5);
                 if(arithmetic) //SRAIW rd,rs1,shamt (64)
-                    writeRegXI(instruction.reg[0], static_cast<Int32>(readRegXI(instruction.reg[1])>>instruction.imm));
+                    writeRegXI(instruction.reg[0], static_cast<Int32>(readRegXI(instruction.reg[1])>>shift));
                 else //SRLIW rd,rs1,shamt (64)
-                    writeRegXU(instruction.reg[0], static_cast<UInt32>(readRegXU(instruction.reg[1])>>instruction.imm));
+                    writeRegXU(instruction.reg[0], static_cast<UInt32>(readRegXU(instruction.reg[1])>>shift));
             } break;
         }
     }
 
-    void executeOpcode23(Instruction& instruction) {
+    void executeOpcode23(const Instruction& instruction) {
         UIntType address = readRegXU(instruction.reg[1])+instruction.imm;
         switch(instruction.funct[0]) {
             case 0: { // SB rs1,rs2,imm
@@ -530,7 +538,7 @@ class CPU {
         }
     }
 
-    void executeOpcode27(Instruction& instruction) {
+    void executeOpcode27(const Instruction& instruction) {
         if(!(EXT&F_Float))
             throw Exception(Exception::Code::IllegalInstruction);
         UIntType address = readRegXU(instruction.reg[1])+instruction.imm;
@@ -548,7 +556,7 @@ class CPU {
         }
     }
 
-    void executeOpcode2F(Instruction& instruction) {
+    void executeOpcode2F(const Instruction& instruction) {
         if(!(EXT&A_AtomicOperations))
             throw Exception(Exception::Code::IllegalInstruction);
         /* U-Type
@@ -578,7 +586,7 @@ class CPU {
         // TODO : Multi core
     }
 
-    void executeOpcode33(Instruction& instruction) {
+    void executeOpcode33(const Instruction& instruction) {
         if(instruction.funct[0] == 1) {
             if(!(EXT&M_MultiplyAndDivide))
                 throw Exception(Exception::Code::IllegalInstruction);
@@ -657,12 +665,12 @@ class CPU {
         }
     }
 
-    void executeOpcode37(Instruction& instruction) {
+    void executeOpcode37(const Instruction& instruction) {
         // LUI rd,imm
         writeRegXU(instruction.reg[0], instruction.imm);
     }
 
-    void executeOpcode3B(Instruction& instruction) {
+    void executeOpcode3B(const Instruction& instruction) {
         if(XLEN < 64)
             throw Exception(Exception::Code::IllegalInstruction);
         if(instruction.funct[0] == 1) {
@@ -710,7 +718,7 @@ class CPU {
         }
     }
 
-    void executeOpcode43(Instruction& instruction) {
+    void executeOpcode43(const Instruction& instruction) {
         if(!(EXT&F_Float))
             throw Exception(Exception::Code::IllegalInstruction);
         /* R4-Type
@@ -720,7 +728,7 @@ class CPU {
         // TODO: Float arithmetic
     }
 
-    void executeOpcode47(Instruction& instruction) {
+    void executeOpcode47(const Instruction& instruction) {
         if(!(EXT&F_Float))
             throw Exception(Exception::Code::IllegalInstruction);
         /* R4-Type
@@ -730,7 +738,7 @@ class CPU {
         // TODO: Float arithmetic
     }
 
-    void executeOpcode4B(Instruction& instruction) {
+    void executeOpcode4B(const Instruction& instruction) {
         if(!(EXT&F_Float))
             throw Exception(Exception::Code::IllegalInstruction);
         /* R4-Type
@@ -740,7 +748,7 @@ class CPU {
         // TODO: Float arithmetic
     }
 
-    void executeOpcode4F(Instruction& instruction) {
+    void executeOpcode4F(const Instruction& instruction) {
         if(!(EXT&F_Float))
             throw Exception(Exception::Code::IllegalInstruction);
         /* R4-Type
@@ -750,7 +758,7 @@ class CPU {
         // TODO: Float arithmetic
     }
 
-    void executeOpcode53(Instruction& instruction) {
+    void executeOpcode53(const Instruction& instruction) {
         if(!(EXT&F_Float))
             throw Exception(Exception::Code::IllegalInstruction);
         /* R-Type
@@ -808,25 +816,31 @@ class CPU {
         // TODO: Float arithmetic
     }
 
-    void executeOpcode63(Instruction& instruction) {
+    void executeOpcode63(const Instruction& instruction, UIntType pcNextValue) {
         switch(instruction.funct[0]) {
             case 0: // BEQ rs1,rs2,imm
                 if(readRegXU(instruction.reg[1]) == readRegXU(instruction.reg[2])) break;
+                pc = pcNextValue;
             return;
             case 1:// BNE rs1,rs2,imm
                 if(readRegXU(instruction.reg[1]) != readRegXU(instruction.reg[2])) break;
+                pc = pcNextValue;
             return;
             case 4:// BLT rs1,rs2,imm
                 if(readRegXI(instruction.reg[1]) < readRegXI(instruction.reg[2])) break;
+                pc = pcNextValue;
             return;
             case 5:// BGE rs1,rs2,imm
                 if(readRegXI(instruction.reg[1]) > readRegXI(instruction.reg[2])) break;
+                pc = pcNextValue;
             return;
             case 6:// BLTU rs1,rs2,imm
                 if(readRegXU(instruction.reg[1]) < readRegXU(instruction.reg[2])) break;
+                pc = pcNextValue;
             return;
             case 7:// BGEU rs1,rs2,imm
                 if(readRegXU(instruction.reg[1]) > readRegXU(instruction.reg[2])) break;
+                pc = pcNextValue;
             return;
             default:
                 throw Exception(Exception::Code::IllegalInstruction);
@@ -834,100 +848,145 @@ class CPU {
         pc += instruction.imm;
     }
 
-    void executeOpcode67(Instruction& instruction, UIntType pcNextValue) {
+    void executeOpcode67(const Instruction& instruction, UIntType pcNextValue) {
         // JALR rd,rs1,imm
         writeRegXU(instruction.reg[0], pcNextValue);
         pc = (readRegXU(instruction.reg[1])+instruction.imm)&~TrailingBitMask(1);
     }
 
-    void executeOpcode6F(Instruction& instruction, UIntType pcNextValue) {
+    void executeOpcode6F(const Instruction& instruction, UIntType pcNextValue) {
         // JAL rd,imm
         writeRegXU(instruction.reg[0], pcNextValue);
         pc += instruction.imm;
     }
 
-    void executeOpcode73(Instruction& instruction, UIntType pcNextValue) {
+    void executeOpcode73(const Instruction& instruction, UIntType pcNextValue) {
         switch(instruction.funct[0]) {
-            case 0:
-                switch(instruction.imm) {
-                    case 0x0000: // ECALL
-
-                    break;
+            case 0: {
+                UIntType mstatus = csr[csr_mstatus];
+                PrivilegeMode cpm = (PrivilegeMode)getBitsFrom(mstatus, 1, 2);
+                switch(static_cast<UInt32>(instruction.imm)) {
+                    case 0x0000: { // ECALL
+                        pc = pcNextValue; // TODO : Find out how pc behaves
+                        throw Exception((Exception::Code)(Exception::Code::EnvironmentCallFromU+cpm));
+                    }
                     case 0x0001: // EBREAK
-
-                    break;
-                    case 0x0100: // ERET
-
-                    break;
+                        throw Exception(Exception::Code::Breakpoint);
+                    case 0x0100: { // ERET
+                        switch(cpm) {
+                            case User:
+                                throw Exception(Exception::Code::IllegalInstruction);
+                            case Supervisor:
+                                pc = csr[csr_sepc];
+                            break;
+                            case Hypervisor:
+                                pc = csr[csr_hepc];
+                            break;
+                            case Machine:
+                                pc = csr[csr_mepc];
+                            break;
+                        }
+                        setBitsAt(mstatus, (mstatus&TrailingBitMask(12))>>3, 0, 12);
+                        setBitsAt(mstatus, (EXT&U_UserMode)?1:7, (getLevels()-1)*3, 3);
+                        csr[csr_mstatus] = mstatus;
+                    } return;
                     case 0x0101: // SFENCE.VM rs1
                         // TODO : Flush caches
-                    return;
+                    break;
                     case 0x0102: // WFI
                         // TODO
                     break;
                     case 0x0205: // HRTS
-                        // TODO : Redirect Trap
-                    break;
+                        if(cpm != Hypervisor)
+                            throw Exception(Exception::Code::IllegalInstruction);
+                        setBitsAt(mstatus, Supervisor, 1, 2);
+                        csr[csr_mstatus] = mstatus;
+                        csr[csr_sepc] = csr[csr_hepc];
+                        csr[csr_scause] = csr[csr_hcause];
+                        csr[csr_sbadaddr] = csr[csr_hbadaddr];
+                        pc = csr[csr_stvec];
+                    return;
                     case 0x0305: // MRTS
-                        // TODO : Redirect Trap
-                    break;
+                        if(cpm != Machine)
+                            throw Exception(Exception::Code::IllegalInstruction);
+                        setBitsAt(mstatus, Supervisor, 1, 2);
+                        csr[csr_mstatus] = mstatus;
+                        csr[csr_sepc] = csr[csr_mepc];
+                        csr[csr_scause] = csr[csr_mcause];
+                        csr[csr_sbadaddr] = csr[csr_mbadaddr];
+                        pc = csr[csr_stvec];
+                    return;
                     case 0x0306: // MRTH
-                        // TODO : Redirect Trap
-                    break;
+                        if(cpm != Machine)
+                            throw Exception(Exception::Code::IllegalInstruction);
+                        setBitsAt(mstatus, Hypervisor, 1, 2);
+                        csr[csr_mstatus] = mstatus;
+                        csr[csr_hepc] = csr[csr_mepc];
+                        csr[csr_hcause] = csr[csr_mcause];
+                        csr[csr_hbadaddr] = csr[csr_mbadaddr];
+                        pc = csr[csr_htvec];
+                    return;
                     default:
                         throw Exception(Exception::Code::IllegalInstruction);
                 }
-            break;
+            } break;
             case 1: { // CSRRW rd,csr,rs1
-                UIntType value = readRegXU(instruction.reg[1]);
-                writeRegXU(instruction.reg[0], readCSR(instruction.imm));
-                writeCSR(instruction.imm, value);
+                UIntType value = readRegXU(instruction.reg[1]),
+                         key = instruction.imm&TrailingBitMask(12);
+                writeRegXU(instruction.reg[0], readCSR(key));
+                writeCSR(key, value);
             } break;
             case 2: { // CSRRS rd,csr,rs1
                 UIntType value = readRegXU(instruction.reg[1]),
-                         csr = readCSR(instruction.imm);
+                         key = instruction.imm&TrailingBitMask(12),
+                         csr = readCSR(key);
                 writeRegXU(instruction.reg[0], csr);
                 if(instruction.reg[1])
-                    writeCSR(instruction.imm, csr|value);
+                    writeCSR(key, csr|value);
             } break;
             case 3: { // CSRRC rd,csr,rs1
                 UIntType value = readRegXU(instruction.reg[1]),
-                         csr = readCSR(instruction.imm);
+                         key = instruction.imm&TrailingBitMask(12),
+                         csr = readCSR(key);
                 writeRegXU(instruction.reg[0], csr);
                 if(instruction.reg[1])
-                    writeCSR(instruction.imm, csr&~value);
+                    writeCSR(key, csr&~value);
             } break;
             case 5: { // CSRRWI rd,csr,imm
-                UIntType value = instruction.reg[1];
-                writeRegXU(instruction.reg[0], readCSR(instruction.imm));
-                writeCSR(instruction.imm, value);
+                UIntType value = instruction.reg[1],
+                         key = instruction.imm&TrailingBitMask(12);
+                writeRegXU(instruction.reg[0], readCSR(key));
+                writeCSR(key, value);
             } break;
             case 6: { // CSRRSI rd,csr,imm
                 UIntType value = instruction.reg[1],
-                         csr = readCSR(instruction.imm);
+                         key = instruction.imm&TrailingBitMask(12),
+                         csr = readCSR(key);
                 writeRegXU(instruction.reg[0], csr);
                 if(value)
-                    writeCSR(instruction.imm, csr|value);
+                    writeCSR(key, csr|value);
             } break;
             case 7: { // CSRRCI rd,csr,imm
                 UIntType value = instruction.reg[1],
-                         csr = readCSR(instruction.imm);
+                         key = instruction.imm&TrailingBitMask(12),
+                         csr = readCSR(key);
                 writeRegXU(instruction.reg[0], csr);
                 if(value)
-                    writeCSR(instruction.imm, csr&~value);
+                    writeCSR(key, csr&~value);
             } break;
             default:
                 throw Exception(Exception::Code::IllegalInstruction);
         }
-
         pc = pcNextValue;
     }
 
-    void fetchAndExecute() {
-        PrivilegeMode cpm = readPM();
+    bool fetchAndExecute() {
+        Exception::Code cause;
+        UIntType badaddr = 0, pcNextValue = pc;
+        PrivilegeMode cpm = (PrivilegeMode)getBitsFrom(csr[csr_mstatus], 1, 2);
 
         try {
-            UIntType pcNextValue = pc, mappedPC = translate(FetchInstruction, pc);
+            UIntType mappedPC = translate(FetchInstruction, pc);
             Instruction instruction;
             bool compressed = false; // TODO : Waiting for next riscv-compressed-spec
             if(compressed) {
@@ -994,42 +1053,89 @@ class CPU {
                     executeOpcode53(instruction);
                 break;
                 case 0x63:
-                    executeOpcode63(instruction);
-                return;
+                    executeOpcode63(instruction, pcNextValue);
+                return true;
         		case 0x67:
                     executeOpcode67(instruction, pcNextValue);
-                return;
+                return true;
                 case 0x6F:
                     executeOpcode6F(instruction, pcNextValue);
-                return;
+                return true;
         		case 0x73:
                     executeOpcode73(instruction, pcNextValue);
-                return;
+                return true;
             }
             pc = pcNextValue;
-            return;
+            return true;
         } catch(MemoryAccessException e) {
-            writeCSR(csr_mbadaddr, e.address);
-            writeCSR(csr_mcause, e.cause);
+            badaddr = e.address;
+            cause = e.cause;
         } catch(Exception e) {
-            writeCSR(csr_mcause, e.cause);
+            cause = e.cause;
         }
-        writeCSR(csr_mepc, pc);
-        printf("TRAPED!\n");
 
-        // TODO : Exception Trap
+        pcNextValue = cpm*0x40;
+        //TODO : Non Maskable Interrupts
 
-        /* TODO : mtdeleg, htdeleg
+        UIntType mstatus = csr[csr_mstatus];
+        if(getBitsFrom(cause, XLEN-1, 1)) { // Interrupt
+            if(getBitsFrom(mstatus, 0, 1)) {
+                // TODO: Check Interrupt flag in mstatus
+            }
+            // TODO: mip, mie
+
+            if(getBitsFrom(csr[csr_mtdeleg], cause*4+cpm+16, 1)) {
+                if(EXT&H_HypervisorMode) {
+                    if(cpm <= Hypervisor)
+                        cpm = (getBitsFrom(csr[csr_htdeleg], cause*4+cpm+16, 1)) ? Supervisor : Hypervisor;
+                    else
+                        cpm = Machine;
+                }else if(EXT&S_SupervisorMode)
+                    cpm = (cpm <= Supervisor) ? Supervisor : Machine;
+            }
+        }else{ // Trap
+            if(getBitsFrom(csr[csr_mtdeleg], cause, 1)) {
+                if(EXT&H_HypervisorMode) {
+                    if(cpm <= Hypervisor)
+                        cpm = (getBitsFrom(csr[csr_htdeleg], cause, 1)) ? Supervisor : Hypervisor;
+                    else
+                        cpm = Machine;
+                }else if(EXT&S_SupervisorMode)
+                    cpm = (cpm <= Supervisor) ? Supervisor : Machine;
+            }
+        }
+
+        pc &= ~TrailingBitMask((EXT&C_CompressedInstructions)?1:2);
         switch(cpm) {
             case Supervisor:
-
+                csr[csr_sbadaddr] = badaddr;
+                csr[csr_scause] = cause;
+                csr[csr_sepc] = pc;
+                pcNextValue += csr[csr_stvec];
             break;
             case Hypervisor:
-
+                csr[csr_hbadaddr] = badaddr;
+                csr[csr_hcause] = cause;
+                csr[csr_hepc] = pc;
+                pcNextValue += csr[csr_htvec];
             break;
+            case User:
+                cpm = Machine;
             case Machine:
-
+                csr[csr_mbadaddr] = badaddr;
+                csr[csr_mcause] = cause;
+                csr[csr_mepc] = pc;
+                pcNextValue += csr[csr_mtvec];
             break;
-        }*/
+        }
+        pc = pcNextValue;
+        setBitsAt(mstatus, (mstatus<<3)&TrailingBitMask(12), 0, 12);
+        setBitsAt(mstatus, cpm<<1, 0, 3);
+        setBitsAt(mstatus, 0, 16, 1);
+        csr[csr_mstatus] = mstatus;
+
+        // TODO : Debugging
+        printf("TRAPED!\n");
+        return false;
     }
 };

@@ -4,7 +4,7 @@
 class Instruction {
 	public:
 	UInt8 opcode, reg[4], funct[2];
-	UInt32 imm;
+	Int32 imm;
 
 	enum Type {
 		R, R4, I, S, SB, U, UJ,
@@ -21,4 +21,4 @@ class Instruction {
 
 UInt64 TrailingBitMask(UInt8 len);
 UInt64 getBitsFrom(UInt64 data, UInt8 at, UInt8 len);
-UInt64 setBitsAt(UInt64 data, UInt8 at, UInt8 len);
+void setBitsAt(UInt64& in, UInt64 data, UInt8 at, UInt8 len);
