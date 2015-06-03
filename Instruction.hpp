@@ -18,7 +18,3 @@ class Instruction {
 	UInt32 encode32() const;
 	Type getType() const;
 };
-
-UInt64 TrailingBitMask(UInt8 len);
-UInt64 getBitsFrom(UInt64 data, UInt8 at, UInt8 len);
-void setBitsAt(UInt64& in, UInt64 data, UInt8 at, UInt8 len);

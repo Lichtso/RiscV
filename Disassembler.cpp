@@ -168,7 +168,7 @@ void disassembleOpcode13(Disassembler& self, const Instruction& instruction) {
 			strcpy(self.buffer, "SRLI");
 		else{
 			strcpy(self.buffer, "SRAI");
-			imm &= TrailingBitMask(5);
+			imm &= TrailingBitMask<UInt32>(5);
 		}
 		break;
 		case 6:
@@ -209,7 +209,7 @@ void disassembleOpcode1B(Disassembler& self, const Instruction& instruction) {
 			strcpy(self.buffer, "SRLIW");
 		else{
 			strcpy(self.buffer, "SRAIW");
-			imm &= TrailingBitMask(5);
+			imm &= TrailingBitMask<UInt32>(5);
 		}
 		break;
 		default:
@@ -229,7 +229,7 @@ void disassembleOpcode27(Disassembler& self, const Instruction& instruction) {
 }
 
 void disassembleOpcode2F(Disassembler& self, const Instruction& instruction) {
-	switch(instruction.funct[0]&(TrailingBitMask(5)<<2)) {
+	switch(instruction.funct[0]&(TrailingBitMask<UInt8>(5)<<2)) {
 		case 0x00:
 		strcpy(self.buffer, "AMOADD");
 		break;
@@ -345,7 +345,7 @@ void disassembleOpcode3B(Disassembler& self, const Instruction& instruction) {
 }
 
 void disassembleOpcode4X(Disassembler& self, const Instruction& instruction) {
-	strcpy(self.buffer, getDisassemblerEntry(disassembler_4X, (instruction.opcode>>2)&TrailingBitMask(2)));
+	strcpy(self.buffer, getDisassemblerEntry(disassembler_4X, (instruction.opcode>>2)&TrailingBitMask<UInt8>(2)));
 	strcat(self.buffer, ".");
 	strcat(self.buffer, getDisassemblerEntry(disassembler_Float, instruction.funct[0]));
 	printRoundingMode(self, instruction);
@@ -359,8 +359,8 @@ void disassembleOpcode4X(Disassembler& self, const Instruction& instruction) {
 }
 
 void disassembleOpcode53(Disassembler& self, const Instruction& instruction) {
-	const char* type = getDisassemblerEntry(disassembler_Float, instruction.funct[0]&TrailingBitMask(1));
-	switch(instruction.funct[0]&~TrailingBitMask(1)) {
+	const char* type = getDisassemblerEntry(disassembler_Float, instruction.funct[0]&TrailingBitMask<UInt8>(1));
+	switch(instruction.funct[0]&~TrailingBitMask<UInt8>(1)) {
 		case 0x00:
 		strcpy(self.buffer, "FADD.");
 		strcat(self.buffer, type);

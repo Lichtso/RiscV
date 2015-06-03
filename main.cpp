@@ -14,7 +14,27 @@ int main(int argc, char** argv) {
         }
     }
 
-    ram.setSize(16);
+    UInt8 status = 0;
+    FloatRoundingMode round = FloatRoundingMode::RoundNearest;
+
+    for(UInt32 i = 0; i < TrailingBitMask<UInt32>(31); ++i) {
+        Float test;
+        test.setSign(0);
+        test.setInteger<UInt32>(status, round, i);
+        float mirror = i;
+        UInt32 mirrored = *reinterpret_cast<UInt32*>(&mirror);
+        if(test.raw == mirrored) continue;
+        //if(status == 0) continue;
+        printf("i: %x, status: %hhx\n", i, status);
+        printf("%08x %d %02hhx %06x\n", test.raw, test.getSign(), test.getExponent(), test.getField());
+        printf("%08x\n", mirrored);
+        break;
+        //if(test.raw != mirrored) break;
+    }
+
+
+
+    /*ram.setSize(16);
     UInt32 data;
     Instruction instruction;
 
@@ -52,8 +72,9 @@ int main(int argc, char** argv) {
 
     for(size_t i = 0; cpu.fetchAndExecute(); ++i)
         printf("%zu %016llx\n", i, cpu.pc);
+
     cpu.dump(std::cout);
-    ram.dump(std::cout);
+    ram.dump(std::cout);*/
 
     return 0;
 }

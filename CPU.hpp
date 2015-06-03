@@ -164,10 +164,9 @@ class CPU {
             break;
         }
         mcpuid <<= (XLEN-2);
-        setBitsAt(mcpuid, XLEN, 26, XLEN-28);
-        setBitsAt(mcpuid, EXT, 0, 26);
+        setBitsIn(mcpuid, static_cast<UIntType>(XLEN), 26, XLEN-28);
+        setBitsIn(mcpuid, static_cast<UIntType>(EXT), 0, 26);
         csr[csr_mcpuid] = mcpuid;
-
         csr[csr_mimpid] = 0; // TODO
         csr[csr_mhartid] = index;
     }
@@ -450,7 +449,7 @@ class CPU {
             case 1: { //SLLI rd,rs1,shamt
                 if(XLEN < 64 && getBitsFrom(instruction.imm, 5, 1))
                     throw Exception(Exception::Code::IllegalInstruction);
-                UIntType shift = instruction.imm&TrailingBitMask((XLEN < 64)?5:6);
+                UIntType shift = instruction.imm&TrailingBitMask<UIntType>((XLEN < 64)?5:6);
                 writeRegXU(instruction.reg[0], readRegXU(instruction.reg[1])<<shift);
             } break;
             case 2: //SLTI rd,rs1,imm
@@ -466,7 +465,7 @@ class CPU {
                 if(XLEN < 64 && getBitsFrom(instruction.imm, 5, 1))
                     throw Exception(Exception::Code::IllegalInstruction);
                 bool arithmetic = getBitsFrom(instruction.imm, 10, 1);
-                UIntType shift = instruction.imm&TrailingBitMask((XLEN < 64)?5:6);
+                UIntType shift = instruction.imm&TrailingBitMask<UIntType>((XLEN < 64)?5:6);
                 if(arithmetic) //SRAI rd,rs1,shamt
                     writeRegXI(instruction.reg[0], readRegXI(instruction.reg[1])>>shift);
                 else //SRLI rd,rs1,shamt
@@ -496,14 +495,14 @@ class CPU {
             case 1: { //SLLIW rd,rs1,shamt (64)
                 if(instruction.imm&(1ULL<<5))
                     throw Exception(Exception::Code::IllegalInstruction);
-                UIntType shift = instruction.imm&TrailingBitMask(5);
+                UIntType shift = instruction.imm&TrailingBitMask<UIntType>(5);
                 writeRegXU(instruction.reg[0], static_cast<UInt32>(readRegXU(instruction.reg[1])<<shift));
             } break;
             case 5: {
                 if(instruction.imm&(1ULL<<5))
                     throw Exception(Exception::Code::IllegalInstruction);
                 bool arithmetic = instruction.imm&(1ULL<<10);
-                UIntType shift = instruction.imm&TrailingBitMask(5);
+                UIntType shift = instruction.imm&TrailingBitMask<UIntType>(5);
                 if(arithmetic) //SRAIW rd,rs1,shamt (64)
                     writeRegXI(instruction.reg[0], static_cast<Int32>(readRegXI(instruction.reg[1])>>shift));
                 else //SRLIW rd,rs1,shamt (64)
@@ -851,7 +850,7 @@ class CPU {
     void executeOpcode67(const Instruction& instruction, UIntType pcNextValue) {
         // JALR rd,rs1,imm
         writeRegXU(instruction.reg[0], pcNextValue);
-        pc = (readRegXU(instruction.reg[1])+instruction.imm)&~TrailingBitMask(1);
+        pc = (readRegXU(instruction.reg[1])+instruction.imm)&~TrailingBitMask<UIntType>(1);
     }
 
     void executeOpcode6F(const Instruction& instruction, UIntType pcNextValue) {
@@ -886,8 +885,8 @@ class CPU {
                                 pc = csr[csr_mepc];
                             break;
                         }
-                        setBitsAt(mstatus, (mstatus&TrailingBitMask(12))>>3, 0, 12);
-                        setBitsAt(mstatus, (EXT&U_UserMode)?1:7, (getLevels()-1)*3, 3);
+                        setBitsIn(mstatus, static_cast<UIntType>((mstatus&TrailingBitMask<UIntType>(12))>>3), 0, 12);
+                        setBitsIn(mstatus, static_cast<UIntType>((EXT&U_UserMode)?1:7), (getLevels()-1)*3, 3);
                         csr[csr_mstatus] = mstatus;
                     } return;
                     case 0x0101: // SFENCE.VM rs1
@@ -899,7 +898,7 @@ class CPU {
                     case 0x0205: // HRTS
                         if(cpm != Hypervisor)
                             throw Exception(Exception::Code::IllegalInstruction);
-                        setBitsAt(mstatus, Supervisor, 1, 2);
+                        setBitsIn(mstatus, static_cast<UIntType>(Supervisor), 1, 2);
                         csr[csr_mstatus] = mstatus;
                         csr[csr_sepc] = csr[csr_hepc];
                         csr[csr_scause] = csr[csr_hcause];
@@ -909,7 +908,7 @@ class CPU {
                     case 0x0305: // MRTS
                         if(cpm != Machine)
                             throw Exception(Exception::Code::IllegalInstruction);
-                        setBitsAt(mstatus, Supervisor, 1, 2);
+                        setBitsIn(mstatus, static_cast<UIntType>(Supervisor), 1, 2);
                         csr[csr_mstatus] = mstatus;
                         csr[csr_sepc] = csr[csr_mepc];
                         csr[csr_scause] = csr[csr_mcause];
@@ -919,7 +918,7 @@ class CPU {
                     case 0x0306: // MRTH
                         if(cpm != Machine)
                             throw Exception(Exception::Code::IllegalInstruction);
-                        setBitsAt(mstatus, Hypervisor, 1, 2);
+                        setBitsIn(mstatus, static_cast<UIntType>(Hypervisor), 1, 2);
                         csr[csr_mstatus] = mstatus;
                         csr[csr_hepc] = csr[csr_mepc];
                         csr[csr_hcause] = csr[csr_mcause];
@@ -932,13 +931,13 @@ class CPU {
             } break;
             case 1: { // CSRRW rd,csr,rs1
                 UIntType value = readRegXU(instruction.reg[1]),
-                         key = instruction.imm&TrailingBitMask(12);
+                         key = instruction.imm&TrailingBitMask<UIntType>(12);
                 writeRegXU(instruction.reg[0], readCSR(key));
                 writeCSR(key, value);
             } break;
             case 2: { // CSRRS rd,csr,rs1
                 UIntType value = readRegXU(instruction.reg[1]),
-                         key = instruction.imm&TrailingBitMask(12),
+                         key = instruction.imm&TrailingBitMask<UIntType>(12),
                          csr = readCSR(key);
                 writeRegXU(instruction.reg[0], csr);
                 if(instruction.reg[1])
@@ -946,7 +945,7 @@ class CPU {
             } break;
             case 3: { // CSRRC rd,csr,rs1
                 UIntType value = readRegXU(instruction.reg[1]),
-                         key = instruction.imm&TrailingBitMask(12),
+                         key = instruction.imm&TrailingBitMask<UIntType>(12),
                          csr = readCSR(key);
                 writeRegXU(instruction.reg[0], csr);
                 if(instruction.reg[1])
@@ -954,13 +953,13 @@ class CPU {
             } break;
             case 5: { // CSRRWI rd,csr,imm
                 UIntType value = instruction.reg[1],
-                         key = instruction.imm&TrailingBitMask(12);
+                         key = instruction.imm&TrailingBitMask<UIntType>(12);
                 writeRegXU(instruction.reg[0], readCSR(key));
                 writeCSR(key, value);
             } break;
             case 6: { // CSRRSI rd,csr,imm
                 UIntType value = instruction.reg[1],
-                         key = instruction.imm&TrailingBitMask(12),
+                         key = instruction.imm&TrailingBitMask<UIntType>(12),
                          csr = readCSR(key);
                 writeRegXU(instruction.reg[0], csr);
                 if(value)
@@ -968,7 +967,7 @@ class CPU {
             } break;
             case 7: { // CSRRCI rd,csr,imm
                 UIntType value = instruction.reg[1],
-                         key = instruction.imm&TrailingBitMask(12),
+                         key = instruction.imm&TrailingBitMask<UIntType>(12),
                          csr = readCSR(key);
                 writeRegXU(instruction.reg[0], csr);
                 if(value)
@@ -1078,7 +1077,7 @@ class CPU {
         //TODO : Non Maskable Interrupts
 
         UIntType mstatus = csr[csr_mstatus];
-        if(getBitsFrom(cause, XLEN-1, 1)) { // Interrupt
+        if(getBitsFrom(static_cast<UIntType>(cause), XLEN-1, 1)) { // Interrupt
             if(getBitsFrom(mstatus, 0, 1)) {
                 // TODO: Check Interrupt flag in mstatus
             }
@@ -1105,7 +1104,7 @@ class CPU {
             }
         }
 
-        pc &= ~TrailingBitMask((EXT&C_CompressedInstructions)?1:2);
+        pc &= ~TrailingBitMask<UIntType>((EXT&C_CompressedInstructions)?1:2);
         switch(cpm) {
             case Supervisor:
                 csr[csr_sbadaddr] = badaddr;
@@ -1129,9 +1128,9 @@ class CPU {
             break;
         }
         pc = pcNextValue;
-        setBitsAt(mstatus, (mstatus<<3)&TrailingBitMask(12), 0, 12);
-        setBitsAt(mstatus, cpm<<1, 0, 3);
-        setBitsAt(mstatus, 0, 16, 1);
+        setBitsIn(mstatus, static_cast<UIntType>((mstatus<<3)&TrailingBitMask<UIntType>(12)), 0, 12);
+        setBitsIn(mstatus, static_cast<UIntType>(cpm<<1), 0, 3);
+        setBitsIn(mstatus, static_cast<UIntType>(0), 16, 1);
         csr[csr_mstatus] = mstatus;
 
         // TODO : Debugging

@@ -1,5 +1,5 @@
 #pragma once
-#include "Base.hpp"
+#include "Float.hpp"
 
 class Exception {
     public:
