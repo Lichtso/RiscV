@@ -6,10 +6,11 @@ enum FloatRoundingMode {
 	RoundMinMagnitude = 1,
 	RoundDown = 2,
 	RoundUp = 3,
-	RoundMaxMagnitude = 4
+	RoundMaxMagnitude = 4,
+	RoundDynamic = 7
 };
 
-enum {
+enum FloatStatusFlag {
 	Inexact = 1U<<0,
 	Underflow = 1U<<1,
 	Overflow = 1U<<2,
@@ -37,82 +38,122 @@ enum FloatComparison {
 	Unordered = 3
 };
 
-// template<UInt8 exponentBits, UInt8 fieldBits>
+template<UInt8 exponentBits, UInt8 fieldBits>
 class Float {
 	public:
-	const static UInt8 exponentBits = 8, fieldBits = 23, totalBits = 1+exponentBits+fieldBits;
+	const static UInt8 totalBits = 1+exponentBits+fieldBits;
 	typedef typename Integer<totalBits>::unsigned_type RawType;
 	typedef typename Integer<exponentBits>::unsigned_type ExponentType;
 	typedef typename Integer<fieldBits>::unsigned_type FieldType;
 	const static ExponentType ExponentMax = TrailingBitMask<ExponentType>(exponentBits);
 	const static ExponentType ExponentOffset = ExponentMax>>1;
+	const static FieldType FieldMax = TrailingBitMask<FieldType>(fieldBits);
 
 	RawType raw;
 
 	//private:
+	static FloatRoundingMode directRoundingMode(FloatRoundingMode round, bool sign) {
+		switch(round) {
+			case RoundDown:
+				return (sign) ? RoundMaxMagnitude : RoundMinMagnitude;
+			case RoundUp:
+				return (sign) ? RoundMinMagnitude : RoundMaxMagnitude;
+			default:
+				return round;
+		}
+	}
+
 	template<typename UIntType>
 	void setInteger(UInt8& status, FloatRoundingMode round, UIntType value) {
 		const UInt8 bits = sizeof(UIntType)*8;
-		if(value == 0)
+		if(value == 0) {
 			setZero();
+			return;
+		}
+
+		auto leadingZeros = clz<UIntType>(value);
+		auto len = bits-leadingZeros-1;
+		ExponentType exp = ExponentOffset+len;
+		FieldType field;
+
+		if(len < fieldBits)
+			field = value<<(fieldBits-len);
 		else{
-			auto leadingZeros = clz<UIntType>(value);
-			auto len = bits-leadingZeros-1;
-			if(ExponentOffset+len > ExponentMax) {
-				status |= Overflow;
-				setExponent(ExponentMax);
-			}else
-				setExponent(ExponentOffset+len);
-			if(len < fieldBits)
-				setField(value<<(fieldBits-len));
-			else{
-				len -= fieldBits;
-				if(len) {
-					if(value&TrailingBitMask<UIntType>(len))
-						status |= Inexact;
-					bool rest = (value>>(len-1))&1;
-					value >>= len;
-					value += rest&value&1;
+			len -= fieldBits;
+			field = value>>len;
+			if(len) {
+				UIntType rest = value&TrailingBitMask<UIntType>(len);
+				if(rest) {
+					status |= Inexact;
+					UIntType treshold;
+					switch(round) {
+						case RoundNearest:
+							treshold = (1<<(len-1))-(field&1);
+						break;
+						case RoundMaxMagnitude:
+							treshold = 0;
+						break;
+						case RoundMinMagnitude:
+						default:
+							treshold = 1<<len;
+						break;
+					}
+					if(rest > treshold) { // Increment
+						field &= TrailingBitMask<FieldType>(fieldBits);
+						if(field == FieldMax) {
+							field = 0;
+							++exp;
+						}else
+							++field;
+					}
 				}
-				// TODO : Debug Rounding and add other modi
-				setField(value);
 			}
+		}
+
+		if(exp >= ExponentMax) {
+			status |= Overflow;
+			setInfinite();
+		}else{
+			setExponent(exp);
+			setField(field);
 		}
 	}
 
 	template<typename UIntType>
 	UIntType getInteger(UInt8& status, FloatRoundingMode round) {
 		const UInt8 bits = sizeof(UIntType)*8;
-		bool sign = getSign();
-		switch(round) {
-			case RoundDown:
-				round = (sign) ? RoundMaxMagnitude : RoundMinMagnitude;
-			break;
-			case RoundUp:
-				round = (sign) ? RoundMinMagnitude : RoundMaxMagnitude;
-			break;
-			default:;
-		}
 		bool toInfinity = false;
 		ExponentType exp = getExponent();
 		FieldType field = getField();
 		if(exp == ExponentMax) {
 			if(getBitsFrom(field, fieldBits-1, 1) == 0)
 				status |= InvalidOperation;
-			else
-				status |= Overflow;
-			return TrailingBitMask<UIntType>(bits-1);
+			status |= Overflow;
+			return 0;
 		}else if(exp < ExponentOffset) {
+			/* TODO : Check rounding
 			if(round == RoundMinMagnitude)
 				return 0;
 			if(round == RoundMaxMagnitude)
 				return (exp == 0 && field == 0) ? 0 : 1;
-			return (exp == ExponentOffset-1) ? 1 : 0;
+			return (exp == ExponentOffset-1) ? 1 : 0;*/
+			return 0;
 		}
+		UIntType value;
 		exp -= ExponentOffset;
-		UIntType value = field>>(fieldBits-exp-1);
-		if(round != RoundMinMagnitude) value += value&TrailingBitMask<UIntType>(1); // TODO : Check rounding
-		return (1U<<exp)|(value>>1);
+
+		if(exp < fieldBits) {
+			value = field>>(fieldBits-exp); /* (fieldBits-exp-1)
+			if(round != RoundMinMagnitude) value += value&TrailingBitMask<UIntType>(1);
+			value >>= 1; */
+		}else if(exp < bits)
+			value = static_cast<UIntType>(field)<<(exp-fieldBits);
+		else{
+			status |= Overflow;
+			return 0;
+		}
+
+		return (1ULL<<exp)|value;
 	}
 
 	static FloatClass classify(bool sign, ExponentType exp, FieldType field) {
@@ -202,27 +243,32 @@ class Float {
 
 	template<typename UIntType>
 	void setUInt(UInt8& status, FloatRoundingMode round, UIntType value) {
-		setSign(0);
-		setInteger<UIntType>(status, round, value);
+		setSign(false);
+		round = directRoundingMode(round, false);
+		setInteger<UIntType>(status, round, false, value);
 	}
 
 	template<typename IntType>
 	void setInt(UInt8& status, FloatRoundingMode round, IntType value) {
 		if(value < 0) {
-			setSign(1);
+			setSign(true);
+			round = directRoundingMode(round, true);
 			setInteger<IntType>(status, round, -value);
 		}else{
-			setSign(0);
+			setSign(false);
+			round = directRoundingMode(round, false);
 			setInteger<IntType>(status, round, value);
 		}
 	}
 
 	template<typename UIntType>
 	UIntType getUInt(UInt8& status, FloatRoundingMode round) {
+		bool sign = getSign();
+		round = directRoundingMode(round, sign);
 		UIntType value = getInteger<UIntType>(status, round);
-		if(getSign()) {
+		if(sign) {
 			if(value > 0)
-				status |= Underflow;
+				status |= Overflow;
 			return 0;
 		}else
 			return value;
@@ -230,10 +276,12 @@ class Float {
 
 	template<typename IntType>
 	IntType getInt(UInt8& status, FloatRoundingMode round) {
+		bool sign = getSign();
+		round = directRoundingMode(round, sign);
 		IntType value = getInteger<IntType>(status, round);
 		if(value < 0)
 			status |= Overflow;
-		return (getSign()) ? -value : value;
+		return (sign) ? -value : value;
 	}
 
 	static FloatComparison compare(UInt8& status, Float a, Float b) {
@@ -320,7 +368,7 @@ class Float {
 	}*/
 };
 
-/*Float<5, 10> Float16;
-Float<8, 23> Float32;
-Float<11, 52> Float64;
-Float<15, 112> Float128;*/
+typedef Float<5, 10> Float16;
+typedef Float<8, 23> Float32;
+typedef Float<11, 52> Float64;
+typedef Float<15, 112> Float128;

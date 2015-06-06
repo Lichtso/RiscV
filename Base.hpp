@@ -14,18 +14,12 @@
 
 typedef __uint8_t UInt8;
 typedef __int8_t Int8;
-
 typedef __uint16_t UInt16;
 typedef __int16_t Int16;
-
 typedef __uint32_t UInt32;
 typedef __int32_t Int32;
-typedef float Float32;
-
 typedef __uint64_t UInt64;
 typedef __int64_t Int64;
-typedef double Float64;
-
 typedef __uint128_t UInt128;
 typedef __int128_t Int128;
 
@@ -49,7 +43,8 @@ class Integer {
 
 template<typename unsigned_type>
 constexpr unsigned_type TrailingBitMask(UInt8 len) {
-	return (len == sizeof(unsigned_type)*8) ? -1 : (1<<len)-1;
+	const unsigned_type zero = 0, one = 1;
+	return (len == sizeof(unsigned_type)*8) ? ~zero : (one<<len)-one;
 }
 
 template<typename unsigned_type>

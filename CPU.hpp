@@ -54,7 +54,6 @@ class CPU {
     union {
         IntType I;
         UIntType U;
-        FloatType F;
     } regX[32];
     union {
         Float32 F32;
@@ -189,22 +188,6 @@ class CPU {
         return (index) ? regX[index].I : 0;
     }
 
-    FloatType readRegXF(UInt8 index) {
-        return (index) ? regX[index].F : 0;
-    }
-
-    Float32 readRegF32(UInt8 index) {
-        return (index) ? regF[index].F32 : 0;
-    }
-
-    Float64 readRegF64(UInt8 index) {
-        return (index) ? regF[index].F64 : 0;
-    }
-
-    FloatType readRegF(UInt8 index) {
-        return (index) ? regF[index].F : 0;
-    }
-
     UIntType readCSR(UInt16 index) {
         return csr[index];
     }
@@ -215,22 +198,6 @@ class CPU {
 
     void writeRegXI(UInt8 index, IntType value) {
         regX[index].I = value;
-    }
-
-    void writeRegXF(UInt8 index, FloatType value) {
-        regX[index].F = value;
-    }
-
-    void writeRegF32(UInt8 index, Float32 value) {
-        regF[index].F32 = value;
-    }
-
-    void writeRegF64(UInt8 index, Float64 value) {
-        regF[index].F64 = value;
-    }
-
-    void writeRegF(UInt8 index, FloatType value) {
-        regF[index].F = value;
     }
 
     void writeCSR(UInt16 index, UIntType value) {
@@ -419,16 +386,12 @@ class CPU {
         UIntType address = readRegXU(instruction.reg[1])+instruction.imm;
         switch(instruction.funct[0]) {
             case 2: { // FLW rd,rs1,imm (F)
-                Float32 data;
-                memoryAccess<decltype(data), false, false>(LoadData, address, &data);
-                writeRegF32(instruction.reg[0], data);
+                memoryAccess<UInt32, false, false>(LoadData, address, &regF[instruction.reg[0]].F32.raw);
             } break;
             case 3: { // FLD rd,rs1,imm (D)
                 if(!(EXT&D_DoubleFloat))
                     throw Exception(Exception::Code::IllegalInstruction);
-                Float64 data;
-                memoryAccess<decltype(data), false, false>(LoadData, address, &data);
-                writeRegF64(instruction.reg[0], data);
+                memoryAccess<UInt64, false, false>(LoadData, address, &regF[instruction.reg[0]].F64.raw);
             } break;
         }
     }
@@ -543,14 +506,12 @@ class CPU {
         UIntType address = readRegXU(instruction.reg[1])+instruction.imm;
         switch(instruction.funct[0]) {
             case 2: { // FSW rd,rs1,imm (F)
-                Float32 data = readRegF32(instruction.reg[2]);
-                memoryAccess<decltype(data), true, false>(StoreData, address, &data);
+                memoryAccess<UInt32, true, false>(StoreData, address, &regF[instruction.reg[0]].F32.raw);
             } break;
             case 3: { // FSD rd,rs1,imm (D)
                 if(!(EXT&D_DoubleFloat))
                     throw Exception(Exception::Code::IllegalInstruction);
-                Float64 data = readRegF64(instruction.reg[2]);
-                memoryAccess<decltype(data), true, false>(StoreData, address, &data);
+                memoryAccess<UInt64, true, false>(StoreData, address, &regF[instruction.reg[0]].F64.raw);
             } break;
         }
     }
@@ -760,59 +721,166 @@ class CPU {
     void executeOpcode53(const Instruction& instruction) {
         if(!(EXT&F_Float))
             throw Exception(Exception::Code::IllegalInstruction);
-        /* R-Type
-        FADD.S rd,rs1,rs2 (F)
-        FSUB.S rd,rs1,rs2 (F)
-        FMUL.S rd,rs1,rs2 (F)
-        FDIV.S rd,rs1,rs2 (F)
-        FSQRT.S rd,rs1 (F)
-        FSGNJ.S rd,rs1,rs2 (F)
-        FSGNJN.S rd,rs1,rs2 (F)
-        FSGNJX.S rd,rs1,rs2 (F)
-        FMIN.S rd,rs1,rs2 (F)
-        FMAX.S rd,rs1,rs2 (F)
-        FCVT.W.S rd,rs1 (F)
-        FCVT.WU.S rd,rs1 (F)
-        FMV.X.S rd,rs1 (F)
-        FEQ.S rd,rs1,rs2 (F)
-        FLT.S rd,rs1,rs2 (F)
-        FLE.S rd,rs1,rs2 (F)
-        FCLASS.S rd,rs1 (F)
-        FCVT.S.W rd,rs1 (F)
-        FCVT.S.WU rd,rs1 (F)
-        FMV.S.X rd,rs1 (F)
-        FCVT.L.S rd,rs1 (F, 64)
-        FCVT.LU.S rd,rs1 (F, 64)
-        FCVT.S.L rd,rs1 (F, 64)
-        FCVT.S.LU rd,rs1 (F, 64)
-        FADD.D rd,rs1,rs2 (D)
-        FSUB.D rd,rs1,rs2 (D)
-        FMUL.D rd,rs1,rs2 (D)
-        FDIV.D rd,rs1,rs2 (D)
-        FSQRT.D rd,rs1 (D)
-        FSGNJ.D rd,rs1,rs (D)
-        FSGNJN.D rd,rs1,r (D)
-        FSGNJX.D rd,rs1,r (D)
-        FMIN.D rd,rs1,rs2 (D)
-        FMAX.D rd,rs1,rs2 (D)
-        FCVT.S.D rd,rs1 (D)
-        FCVT.D.S rd,rs1 (D)
-        FEQ.D rd,rs1,rs2 (D)
-        FLT.D rd,rs1,rs2 (D)
-        FLE.D rd,rs1,rs2 (D)
-        FCLASS.D rd,rs1 (D)
-        FCVT.W.D rd,rs1 (D)
-        FCVT.WU.D rd,rs1 (D)
-        FCVT.D.W rd,rs1 (D)
-        FCVT.D.WU rd,rs1 (D)
-        FCVT.L.D rd,rs1 (D, 64)
-        FCVT.LU.D rd,rs1 (D, 64)
-        FMV.X.D rd,rs1 (D, 64)
-        FCVT.D.L rd,rs1 (D, 64)
-        FCVT.D.LU rd,rs1 (D, 64)
-        FMV.D.X rd,rs1 (D, 64)
-        */
-        // TODO: Float arithmetic
+
+        UInt8& status = csr[csr_fflags];
+        FloatRoundingMode mode = static_cast<FloatRoundingMode>(instruction.funct[1]);
+        if(mode == RoundDynamic)
+            mode = static_cast<FloatRoundingMode>((status>>5)&TrailingBitMask<UInt8>(3));
+
+        switch(instruction.funct[0]) {
+        	case 0x00: // FADD.S rd,rs1,rs2 (F)
+            break;
+            case 0x01: // FADD.D rd,rs1,rs2 (F, D)
+        	break;
+        	case 0x04: // FSUB.S rd,rs1,rs2 (F)
+            break;
+            case 0x05: // FSUB.D rd,rs1,rs2 (F, D)
+        	break;
+        	case 0x08: // FMUL.S rd,rs1,rs2 (F)
+            break;
+            case 0x09: // FMUL.D rd,rs1,rs2 (F, D)
+        	break;
+        	case 0x0C: // FDIV.S rd,rs1,rs2 (F)
+            break;
+            case 0x0D: // FDIV.D rd,rs1,rs2 (F, D)
+        	break;
+            case 0x20: // FCVT.S.D rd,rs1 (F, D)
+            break;
+        	case 0x21: // FCVT.D.S rd,rs1 (F, D)
+            break;
+        	case 0x2C: // FSQRT.S rd,rs1 (F)
+            break;
+            case 0x2D: // FSQRT.D rd,rs1 (F, D)
+            break;
+        	case 0x10:
+                switch(instruction.funct[1]) {
+                    case 0: // FSGNJ.S rd,rs1,rs2 (F)
+                    break;
+                    case 1: // FSGNJN.S rd,rs1,rs2 (F)
+                    break;
+                    case 2: // FSGNJX.S rd,rs1,rs2 (F)
+                    break;
+                }
+            break;
+            case 0x11:
+                switch(instruction.funct[1]) {
+                    case 0: // FSGNJ.D rd,rs1,rs2 (F, D)
+                    break;
+                    case 1: // FSGNJN.D rd,rs1,rs2 (F, D)
+                    break;
+                    case 2: // FSGNJX.D rd,rs1,rs2 (F, D)
+                    break;
+                }
+        	break;
+        	case 0x14:
+                switch(instruction.funct[1]) {
+                    case 0: // FMIN.S rd,rs1,rs2 (F)
+                    break;
+                    case 1: // FMAX.S rd,rs1,rs2 (F)
+                    break;
+                }
+            break;
+            case 0x15:
+                switch(instruction.funct[1]) {
+                    case 0: // FMIN.D rd,rs1,rs2 (F, D)
+                    break;
+                    case 1: // FMAX.D rd,rs1,rs2 (F, D)
+                    break;
+                }
+        	break;
+        	case 0x50:
+                switch(instruction.funct[1]) {
+                    case 0: // FLE.S rd,rs1,rs2 (F)
+                    break;
+                    case 1: // FLT.S rd,rs1,rs2 (F)
+                    break;
+                    case 2: // FEQ.S rd,rs1,rs2 (F)
+                    break;
+                }
+            break;
+            case 0x51:
+                switch(instruction.funct[1]) {
+                    case 0: // FLE.D rd,rs1,rs2 (F, D)
+                    break;
+                    case 1: // FLT.D rd,rs1,rs2 (F, D)
+                    break;
+                    case 2: // FEQ.D rd,rs1,rs2 (F, D)
+                    break;
+                }
+        	break;
+        	case 0x60:
+                switch(instruction.reg[2]) {
+                    case 0: // FCVT.W.S rd,rs1 (F)
+                    break;
+                    case 1: // FCVT.WU.S rd,rs1 (F)
+                    break;
+                    case 2: // FCVT.L.S rd,rs1 (F, 64)
+                    break;
+                    case 3: // FCVT.LU.S rd,rs1 (F, 64)
+                    break;
+                }
+            break;
+            case 0x61:
+                switch(instruction.reg[2]) {
+                    case 0: // FCVT.W.D rd,rs1 (F, D)
+                    break;
+                    case 1: // FCVT.WU.D rd,rs1 (F, D)
+                    break;
+                    case 2: // FCVT.L.D rd,rs1 (F, D, 64)
+                    break;
+                    case 3: // FCVT.LU.D rd,rs1 (F, D, 64)
+                    break;
+                }
+            break;
+            case 0x68:
+                switch(instruction.reg[2]) {
+                    case 0: // FCVT.S.W rd,rs1 (F)
+                    break;
+                    case 1: // FCVT.S.WU rd,rs1 (F)
+                    break;
+                    case 2: // FCVT.S.L rd,rs1 (F, 64)
+                    break;
+                    case 3: // FCVT.S.LU rd,rs1 (F, 64)
+                    break;
+                }
+            break;
+        	case 0x69:
+                switch(instruction.reg[2]) {
+                    case 0: // FCVT.D.W rd,rs1 (F, D)
+                    break;
+                    case 1: // FCVT.D.WU rd,rs1 (F, D)
+                    break;
+                    case 2: // FCVT.D.L rd,rs1 (F, D, 64)
+                    break;
+                    case 3: // FCVT.D.LU rd,rs1 (F, D, 64)
+                    break;
+                }
+            break;
+        	case 0x70:
+                switch(instruction.funct[1]) {
+                    case 0: // FMV.X.S rd,rs1 (F)
+                    break;
+                    case 1: // FCLASS.S rd,rs1 (F)
+                    break;
+                }
+            break;
+            case 0x71:
+                switch(instruction.funct[1]) {
+                    case 0: // FMV.X.D rd,rs1 (F)
+                    break;
+                    case 1: // FCLASS.D rd,rs1 (F)
+                    break;
+                }
+            break;
+        	case 0x78: // FMV.S.X rd,rs1 (F)
+            break;
+            case 0x79: // FMV.D.X rd,rs1 (F, D, 64)
+        	break;
+        	default:
+        	   throw Exception(Exception::Code::IllegalInstruction);
+        }
+
+        // TODO: R-Type float arithmetic
     }
 
     void executeOpcode63(const Instruction& instruction, UIntType pcNextValue) {
