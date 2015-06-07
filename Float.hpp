@@ -19,16 +19,16 @@ enum FloatStatusFlag {
 };
 
 enum FloatClass {
-	NegativeInfinity = 0,
-	NegativeNormal = 1,
-	NegativeSubnormal = 2,
-	NegativeZero = 3,
-	PositiveZero = 4,
-	PositiveSubnormal = 5,
-	PositiveNormal = 6,
-	PositiveInfinity = 7,
-	SignalingNaN = 8,
-	QuietNaN = 9
+	NegativeInfinity = 1U<<0,
+	NegativeNormal = 1U<<1,
+	NegativeSubnormal = 1U<<2,
+	NegativeZero = 1U<<3,
+	PositiveZero = 1U<<4,
+	PositiveSubnormal = 1U<<5,
+	PositiveNormal = 1U<<6,
+	PositiveInfinity = 1U<<7,
+	SignalingNaN = 1U<<8,
+	QuietNaN = 1U<<9
 };
 
 enum FloatComparison {
@@ -65,12 +65,12 @@ class Float {
 
 	template<typename UIntType>
 	void setInteger(UInt8& status, FloatRoundingMode round, UIntType value) {
-		const UInt8 bits = sizeof(UIntType)*8;
 		if(value == 0) {
 			setZero();
 			return;
 		}
 
+		const UInt8 bits = sizeof(UIntType)*8;
 		auto leadingZeros = clz<UIntType>(value);
 		auto len = bits-leadingZeros-1;
 		ExponentType exp = ExponentOffset+len;
@@ -120,40 +120,35 @@ class Float {
 	}
 
 	template<typename UIntType>
-	UIntType getInteger(UInt8& status, FloatRoundingMode round) {
+	UIntType getInteger(UInt8& status) {
 		const UInt8 bits = sizeof(UIntType)*8;
-		bool toInfinity = false;
 		ExponentType exp = getExponent();
 		FieldType field = getField();
+
+		if(exp > ExponentOffset) {
+			exp -= ExponentOffset;
+
+			UIntType value;
+			if(exp < fieldBits)
+				value = field>>(fieldBits-exp);
+			else if(exp < bits)
+				value = static_cast<UIntType>(field)<<(exp-fieldBits);
+			else{
+				status |= Overflow;
+				return 0;
+			}
+
+			return (1ULL<<exp)|value;
+		}
+
 		if(exp == ExponentMax) {
-			if(getBitsFrom(field, fieldBits-1, 1) == 0)
+			if(field != 0)
 				status |= InvalidOperation;
 			status |= Overflow;
-			return 0;
-		}else if(exp < ExponentOffset) {
-			/* TODO : Check rounding
-			if(round == RoundMinMagnitude)
-				return 0;
-			if(round == RoundMaxMagnitude)
-				return (exp == 0 && field == 0) ? 0 : 1;
-			return (exp == ExponentOffset-1) ? 1 : 0;*/
-			return 0;
-		}
-		UIntType value;
-		exp -= ExponentOffset;
-
-		if(exp < fieldBits) {
-			value = field>>(fieldBits-exp); /* (fieldBits-exp-1)
-			if(round != RoundMinMagnitude) value += value&TrailingBitMask<UIntType>(1);
-			value >>= 1; */
-		}else if(exp < bits)
-			value = static_cast<UIntType>(field)<<(exp-fieldBits);
-		else{
-			status |= Overflow;
-			return 0;
+			return 1ULL<<(bits-1);
 		}
 
-		return (1ULL<<exp)|value;
+		return 0;
 	}
 
 	static FloatClass classify(bool sign, ExponentType exp, FieldType field) {
@@ -172,7 +167,7 @@ class Float {
 	}
 
 	public:
-	bool isNaN() {
+	/*bool isNaN() {
 		return getExponent() == ExponentMax && getField() != 0;
 	}
 
@@ -186,7 +181,7 @@ class Float {
 
 	bool isZero() {
 		return getExponent() == 0 && getField() == 0;
-	}
+	}*/
 
 	FloatClass getClass() {
 		return classify(getSign(), getExponent(), getField());
@@ -218,12 +213,12 @@ class Float {
 
 	void setQuietNaN() {
 		setExponent(ExponentMax);
-		setField(1U<<(fieldBits-1));
+		setField(TrailingBitMask<FieldType>(fieldBits));
 	}
 
 	void setSignalingNaN() {
 		setExponent(ExponentMax);
-		setField(1);
+		setField(TrailingBitMask<FieldType>(fieldBits-1));
 	}
 
 	void setInfinite() {
@@ -262,11 +257,9 @@ class Float {
 	}
 
 	template<typename UIntType>
-	UIntType getUInt(UInt8& status, FloatRoundingMode round) {
-		bool sign = getSign();
-		round = directRoundingMode(round, sign);
-		UIntType value = getInteger<UIntType>(status, round);
-		if(sign) {
+	UIntType getUInt(UInt8& status) {
+		UIntType value = getInteger<UIntType>(status);
+		if(getSign()) {
 			if(value > 0)
 				status |= Overflow;
 			return 0;
@@ -275,15 +268,14 @@ class Float {
 	}
 
 	template<typename IntType>
-	IntType getInt(UInt8& status, FloatRoundingMode round) {
-		bool sign = getSign();
-		round = directRoundingMode(round, sign);
-		IntType value = getInteger<IntType>(status, round);
+	IntType getInt(UInt8& status) {
+		IntType value = getInteger<IntType>(status);
 		if(value < 0)
 			status |= Overflow;
-		return (sign) ? -value : value;
+		return (getSign()) ? -value : value;
 	}
 
+	template<bool signaling>
 	static FloatComparison compare(UInt8& status, Float a, Float b) {
 		bool signA = a.getSign(), signB = b.getSign();
 		ExponentType expA = a.getExponent(), expB = b.getExponent();
@@ -310,7 +302,10 @@ class Float {
 				return FloatComparison::Greater;
 			case SignalingNaN:
 				status |= InvalidOperation;
+				return FloatComparison::Unordered;
 			case QuietNaN:
+				if(signaling)
+					status |= InvalidOperation;
 				return FloatComparison::Unordered;
 		}
 
@@ -333,7 +328,10 @@ class Float {
 				return FloatComparison::Less;
 			case SignalingNaN:
 				status |= InvalidOperation;
+				return FloatComparison::Unordered;
 			case QuietNaN:
+				if(signaling)
+					status |= InvalidOperation;
 				return FloatComparison::Unordered;
 		}
 
@@ -349,7 +347,33 @@ class Float {
 		return static_cast<FloatComparison>((expA<expB)^signA);
 	}
 
-	/*static Float add(Float a, Float b) {
+	template<FloatComparison type>
+	void setExtremum(UInt8& status, Float a, Float b) {
+		FloatClass classA = a.getClass(), classB = b.getClass();
+		if(classA == FloatClass::SignalingNaN || classB == FloatClass::SignalingNaN) {
+			setQuietNaN();
+			return;
+		}
+
+		if(classA == FloatClass::QuietNaN) {
+			if(classB == FloatClass::QuietNaN)
+				setQuietNaN();
+			else
+				*this = b;
+		}else{
+			if(classB == FloatClass::QuietNaN)
+				*this = a;
+			else{
+				auto cmp = compare<false>(status, a, b);
+				if(cmp == type)
+					*this = a;
+				else
+					*this = b;
+			}
+		}
+	}
+
+	/*static Float add(UInt8& status, Float a, Float b) {
 		bool signA = a.getSign(), signB = b.getSign();
 		ExponentType expA = a.getExponent(), expB = b.getExponent();
 		FieldType fieldA = a.getField(), fieldB = b.getField();
