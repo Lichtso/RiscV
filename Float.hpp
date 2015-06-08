@@ -73,9 +73,9 @@ class Float {
 		const UInt8 bits = sizeof(UIntType)*8;
 		auto leadingZeros = clz<UIntType>(value);
 		auto len = bits-leadingZeros-1;
-		ExponentType exp = ExponentOffset+len;
-		FieldType field;
+		auto exp = ExponentOffset+len;
 
+		FieldType field;
 		if(len < fieldBits)
 			field = value<<(fieldBits-len);
 		else{
@@ -98,7 +98,7 @@ class Float {
 							treshold = 1<<len;
 						break;
 					}
-					if(rest > treshold) { // Increment
+					if(rest > treshold) {
 						field &= TrailingBitMask<FieldType>(fieldBits);
 						if(field == FieldMax) {
 							field = 0;
@@ -125,30 +125,28 @@ class Float {
 		ExponentType exp = getExponent();
 		FieldType field = getField();
 
-		if(exp > ExponentOffset) {
-			exp -= ExponentOffset;
-
-			UIntType value;
-			if(exp < fieldBits)
-				value = field>>(fieldBits-exp);
-			else if(exp < bits)
-				value = static_cast<UIntType>(field)<<(exp-fieldBits);
-			else{
-				status |= Overflow;
-				return 0;
-			}
-
-			return (1ULL<<exp)|value;
-		}
+		if(exp < ExponentOffset)
+			return 0;
 
 		if(exp == ExponentMax) {
 			if(field != 0)
 				status |= InvalidOperation;
 			status |= Overflow;
-			return 1ULL<<(bits-1);
+			return 0;
 		}
 
-		return 0;
+		UIntType value;
+		exp -= ExponentOffset;
+		if(exp < fieldBits)
+			value = field>>(fieldBits-exp);
+		else if(exp < bits)
+			value = static_cast<UIntType>(field)<<(exp-fieldBits);
+		else{
+			status |= Overflow;
+			return 0;
+		}
+
+		return (1ULL<<exp)|value;
 	}
 
 	static FloatClass classify(bool sign, ExponentType exp, FieldType field) {

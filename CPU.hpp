@@ -730,28 +730,54 @@ class CPU {
         // TODO: R-Type float arithmetic
         switch(instruction.funct[0]) {
         	case 0x00: // FADD.S rd,rs1,rs2 (F)
+
             break;
             case 0x01: // FADD.D rd,rs1,rs2 (F, D)
+                if(!(EXT&D_DoubleFloat))
+                    throw Exception(Exception::Code::IllegalInstruction);
+                
         	break;
         	case 0x04: // FSUB.S rd,rs1,rs2 (F)
+
             break;
             case 0x05: // FSUB.D rd,rs1,rs2 (F, D)
+                if(!(EXT&D_DoubleFloat))
+                    throw Exception(Exception::Code::IllegalInstruction);
+
         	break;
         	case 0x08: // FMUL.S rd,rs1,rs2 (F)
+
             break;
             case 0x09: // FMUL.D rd,rs1,rs2 (F, D)
+                if(!(EXT&D_DoubleFloat))
+                    throw Exception(Exception::Code::IllegalInstruction);
+
         	break;
         	case 0x0C: // FDIV.S rd,rs1,rs2 (F)
+
             break;
             case 0x0D: // FDIV.D rd,rs1,rs2 (F, D)
+                if(!(EXT&D_DoubleFloat))
+                    throw Exception(Exception::Code::IllegalInstruction);
+
         	break;
             case 0x20: // FCVT.S.D rd,rs1 (F, D)
+                if(!(EXT&D_DoubleFloat))
+                    throw Exception(Exception::Code::IllegalInstruction);
+
             break;
         	case 0x21: // FCVT.D.S rd,rs1 (F, D)
+                if(!(EXT&D_DoubleFloat))
+                    throw Exception(Exception::Code::IllegalInstruction);
+
             break;
         	case 0x2C: // FSQRT.S rd,rs1 (F)
+
             break;
             case 0x2D: // FSQRT.D rd,rs1 (F, D)
+                if(!(EXT&D_DoubleFloat))
+                    throw Exception(Exception::Code::IllegalInstruction);
+
             break;
         	case 0x10:
                 regF[instruction.reg[0]].F32 = regF[instruction.reg[1]].F32;
@@ -769,6 +795,8 @@ class CPU {
                 }
             break;
             case 0x11:
+                if(!(EXT&D_DoubleFloat))
+                    throw Exception(Exception::Code::IllegalInstruction);
                 regF[instruction.reg[0]].F64 = regF[instruction.reg[1]].F64;
                 switch(instruction.funct[1]) {
                     case 0: // FSGNJ.D rd,rs1,rs2 (F, D)
@@ -796,6 +824,8 @@ class CPU {
                 }
             break;
             case 0x15:
+                if(!(EXT&D_DoubleFloat))
+                    throw Exception(Exception::Code::IllegalInstruction);
                 switch(instruction.funct[1]) {
                     case 0: // FMIN.D rd,rs1,rs2 (F, D)
                         regF[instruction.reg[0]].F64.setExtremum<FloatComparison::Less>(status,
@@ -824,6 +854,8 @@ class CPU {
                 }
             break;
             case 0x51:
+                if(!(EXT&D_DoubleFloat))
+                    throw Exception(Exception::Code::IllegalInstruction);
                 switch(instruction.funct[1]) {
                     case 0: { // FLE.D rd,rs1,rs2 (F, D)
                         auto cmp = Float64::compare<true>(status, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
@@ -840,6 +872,8 @@ class CPU {
                 }
         	break;
         	case 0x60:
+                if(instruction.reg[2] >= 2 && XLEN < 64)
+                    throw Exception(Exception::Code::IllegalInstruction);
                 switch(instruction.reg[2]) {
                     case 0: // FCVT.W.S rd,rs1 (F)
                         writeRegXI(instruction.reg[0], regF[instruction.reg[1]].F32.template getInt<Int32>(status));
@@ -856,6 +890,8 @@ class CPU {
                 }
             break;
             case 0x61:
+                if(!(EXT&D_DoubleFloat) || (instruction.reg[2] >= 2 && XLEN < 64))
+                    throw Exception(Exception::Code::IllegalInstruction);
                 switch(instruction.reg[2]) {
                     case 0: // FCVT.W.D rd,rs1 (F, D)
                         writeRegXI(instruction.reg[0], regF[instruction.reg[1]].F64.template getInt<Int32>(status));
@@ -872,6 +908,8 @@ class CPU {
                 }
             break;
             case 0x68:
+                if(instruction.reg[2] >= 2 && XLEN < 64)
+                    throw Exception(Exception::Code::IllegalInstruction);
                 switch(instruction.reg[2]) {
                     case 0: // FCVT.S.W rd,rs1 (F)
                         regF[instruction.reg[0]].F32.template setInt<Int32>(status, round, readRegXI(instruction.reg[1]));
@@ -888,6 +926,8 @@ class CPU {
                 }
             break;
         	case 0x69:
+                if(!(EXT&D_DoubleFloat) || (instruction.reg[2] >= 2 && XLEN < 64))
+                    throw Exception(Exception::Code::IllegalInstruction);
                 switch(instruction.reg[2]) {
                     case 0: // FCVT.D.W rd,rs1 (F, D)
                         regF[instruction.reg[0]].F64.template setInt<Int32>(status, round, readRegXI(instruction.reg[1]));
@@ -914,6 +954,8 @@ class CPU {
                 }
             break;
             case 0x71:
+                if(!(EXT&D_DoubleFloat))
+                    throw Exception(Exception::Code::IllegalInstruction);
                 switch(instruction.funct[1]) {
                     case 0: // FMV.X.D rd,rs1 (F, D)
                         writeRegXI(instruction.reg[0], static_cast<Int64>(regF[instruction.reg[1]].F64.raw));
@@ -927,6 +969,8 @@ class CPU {
                 regF[instruction.reg[0]].F32.raw = readRegXU(instruction.reg[1]);
             break;
             case 0x79: // FMV.D.X rd,rs1 (F, D, 64)
+                if(!(EXT&D_DoubleFloat) || XLEN < 64)
+                    throw Exception(Exception::Code::IllegalInstruction);
                 regF[instruction.reg[0]].F64.raw = readRegXU(instruction.reg[1]);
         	break;
         	default:

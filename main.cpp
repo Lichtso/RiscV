@@ -1,4 +1,5 @@
 #include "CPU.hpp"
+#include <cfenv>
 
 RAM ram;
 CPU<> cpu;
@@ -18,21 +19,34 @@ int main(int argc, char** argv) {
     FloatRoundingMode round = FloatRoundingMode::RoundNearest;
 
     for(UInt32 i = 0; i < TrailingBitMask<UInt32>(31); ++i) {
-        Float test;
+        Float32 test;
         test.setSign(0);
         test.setInteger<UInt32>(status, round, i);
         float mirror = i;
         UInt32 mirrored = *reinterpret_cast<UInt32*>(&mirror);
         if(test.raw == mirrored) continue;
-        //if(status == 0) continue;
         printf("i: %x, status: %hhx\n", i, status);
         printf("%08x %d %02hhx %06x\n", test.raw, test.getSign(), test.getExponent(), test.getField());
         printf("%08x\n", mirrored);
-        break;
-        //if(test.raw != mirrored) break;
     }
 
+    // printf("%d %d %d %d %d\n", FE_INVALID, FE_DIVBYZERO, FE_OVERFLOW, FE_UNDERFLOW, FE_INEXACT);
+    // printf("%d %d %d %d %d\n", InvalidOperation, DivideByZero, Overflow, Underflow, Inexact);
+    // std::fesetround(FE_UPWARD);
+    /*for(UInt32 i = 0x1000000; i < TrailingBitMask<UInt32>(31); ++i) {
+        std::feclearexcept(FE_ALL_EXCEPT);
+        Float32 test;
+        test.raw = i;
+        UInt64 result = test.getInteger<UInt64>(status);
+        float mirror = *reinterpret_cast<float*>(&i);
+        UInt64 mirrored = mirror;
+        std::fexcept_t flags;
+        std::fegetexceptflag(&flags, FE_ALL_EXCEPT);
+        if(result == mirrored) continue;
 
+        printf("%08x %d %d %06x, status: %hhx %hx\n", test.raw, test.getSign(), test.getExponent()-Float32::ExponentOffset, test.getField(), status, flags);
+        printf("%016llx %016llx\n", result, mirrored);
+    }*/
 
     /*ram.setSize(16);
     UInt32 data;
