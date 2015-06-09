@@ -18,17 +18,27 @@ int main(int argc, char** argv) {
     UInt8 status = 0;
     FloatRoundingMode round = FloatRoundingMode::RoundNearest;
 
-    for(UInt32 i = 0; i < TrailingBitMask<UInt32>(31); ++i) {
+    for(Int16 exp = 2-128-23; exp <= 128; ++exp) {
         Float32 test;
         test.setSign(0);
-        test.setInteger<UInt32>(status, round, i);
+        test.setBinaryPowerProduct<UInt32>(status, round, 1, exp);
+        float mirror = *reinterpret_cast<float*>(&test.raw);
+
+        //printf("%08x %d %02hhx %06x\n", test.raw, test.getSign(), test.getExponent(), test.getField());
+        printf("%08x %.*f\n", test.raw, (mirror < 1) ? -exp : 0, mirror);
+    }
+
+    /*for(UInt32 i = 0; i < TrailingBitMask<UInt32>(31); ++i) {
+        Float32 test;
+        test.setSign(0);
+        test.setBinaryPowerProduct<UInt32>(status, round, i);
         float mirror = i;
         UInt32 mirrored = *reinterpret_cast<UInt32*>(&mirror);
         if(test.raw == mirrored) continue;
         printf("i: %x, status: %hhx\n", i, status);
         printf("%08x %d %02hhx %06x\n", test.raw, test.getSign(), test.getExponent(), test.getField());
         printf("%08x\n", mirrored);
-    }
+    }*/
 
     // printf("%d %d %d %d %d\n", FE_INVALID, FE_DIVBYZERO, FE_OVERFLOW, FE_UNDERFLOW, FE_INEXACT);
     // printf("%d %d %d %d %d\n", InvalidOperation, DivideByZero, Overflow, Underflow, Inexact);

@@ -63,39 +63,56 @@ class Float {
 		}
 	}
 
-	template<typename UIntType>
-	void setInteger(UInt8& status, FloatRoundingMode round, UIntType value) {
-		if(value == 0) {
+	template<typename FactorType>
+	void setBinaryPowerProduct(UInt8& status, FloatRoundingMode round, FactorType factor, Int64 exp = 0) {
+		if(factor == 0) {
 			setZero();
 			return;
 		}
 
-		const UInt8 bits = sizeof(UIntType)*8;
-		auto leadingZeros = clz<UIntType>(value);
-		auto len = bits-leadingZeros-1;
-		auto exp = ExponentOffset+len;
+		if(exp <= -ExponentOffset) {
+			exp += ExponentOffset+fieldBits-1;
+			if(exp < 0) {
+				status |= Overflow;
+				setZero();
+				return;
+			}
+			factor <<= exp;
+			if(factor < FieldMax) {
+				setExponent(0);
+				setField(factor);
+				return;
+			}else
+				exp = 1-fieldBits;
+		}else
+			exp += ExponentOffset;
 
 		FieldType field;
-		if(len < fieldBits)
-			field = value<<(fieldBits-len);
-		else{
-			len -= fieldBits;
-			field = value>>len;
-			if(len) {
-				UIntType rest = value&TrailingBitMask<UIntType>(len);
+		auto length = sizeof(FactorType)*8-clz<FactorType>(factor)-1;
+		if(length < fieldBits) {
+			exp += length;
+			length = fieldBits-length;
+			field = factor<<length;
+		}else{
+			exp += length;
+			length = length-fieldBits;
+			field = factor>>length;
+
+			if(length) {
+				FactorType rest = factor&TrailingBitMask<FactorType>(length);
 				if(rest) {
 					status |= Inexact;
-					UIntType treshold;
+					FactorType treshold;
 					switch(round) {
 						case RoundNearest:
-							treshold = (1<<(len-1))-(field&1);
+							treshold = (1<<(length-1))-(field&1);
 						break;
 						case RoundMaxMagnitude:
 							treshold = 0;
 						break;
 						case RoundMinMagnitude:
 						default:
-							treshold = 1<<len;
+							treshold = 1<<length;
 						break;
 					}
 					if(rest > treshold) {
@@ -237,20 +254,17 @@ class Float {
 	template<typename UIntType>
 	void setUInt(UInt8& status, FloatRoundingMode round, UIntType value) {
 		setSign(false);
-		round = directRoundingMode(round, false);
-		setInteger<UIntType>(status, round, false, value);
+		setBinaryPowerProduct<UIntType>(status, directRoundingMode(round, false), value);
 	}
 
 	template<typename IntType>
 	void setInt(UInt8& status, FloatRoundingMode round, IntType value) {
 		if(value < 0) {
 			setSign(true);
-			round = directRoundingMode(round, true);
-			setInteger<IntType>(status, round, -value);
+			setBinaryPowerProduct<IntType>(status, directRoundingMode(round, true), -value);
 		}else{
 			setSign(false);
-			round = directRoundingMode(round, false);
-			setInteger<IntType>(status, round, value);
+			setBinaryPowerProduct<IntType>(status, directRoundingMode(round, false), value);
 		}
 	}
 
