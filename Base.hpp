@@ -60,7 +60,7 @@ void setBitsIn(unsigned_type& in, unsigned_type data, UInt8 at, UInt8 len) {
 
 template<typename unsigned_type>
 UInt8 clz(unsigned_type value) {
-	// if(value == 0) return bits;
+	if(value == 0) return sizeof(unsigned_type)*8;
 	if(sizeof(unsigned_type) <= 2)
 		return __builtin_clzs(value);
 	else if(sizeof(unsigned_type) <= 4)
@@ -70,6 +70,21 @@ UInt8 clz(unsigned_type value) {
 	else if(sizeof(unsigned_type) <= 16) {
 		auto upper = static_cast<UInt128>(value)>>64;
 		return (upper) ? __builtin_clzll(upper) : 64+__builtin_clzll(value&TrailingBitMask<unsigned_type>(64));
+	}
+}
+
+template<typename unsigned_type>
+UInt8 ctz(unsigned_type value) {
+	if(value == 0) return sizeof(unsigned_type)*8;
+	if(sizeof(unsigned_type) <= 2)
+		return __builtin_ctzs(value);
+	else if(sizeof(unsigned_type) <= 4)
+		return __builtin_ctz(value);
+	else if(sizeof(unsigned_type) <= 8)
+		return __builtin_ctzll(value);
+	else if(sizeof(unsigned_type) <= 16) {
+		auto upper = static_cast<UInt128>(value)>>64;
+		return (upper) ? __builtin_ctzll(upper) : 64+__builtin_ctzll(value&TrailingBitMask<unsigned_type>(64));
 	}
 }
 

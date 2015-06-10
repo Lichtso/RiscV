@@ -18,17 +18,23 @@ int main(int argc, char** argv) {
     UInt8 status = 0;
     FloatRoundingMode round = FloatRoundingMode::RoundNearest;
 
-    for(Int16 exp = 2-128-23; exp <= 128; ++exp) {
+    for(Int32 exp = -128-23-3; exp <= 128; ++exp) {
         Float32 test;
         test.setSign(0);
-        test.setBinaryPowerProduct<UInt32>(status, round, 1, exp);
+        test.setBinaryPowerProduct<UInt32>(status, round, 10, exp);
         float mirror = *reinterpret_cast<float*>(&test.raw);
 
-        //printf("%08x %d %02hhx %06x\n", test.raw, test.getSign(), test.getExponent(), test.getField());
-        printf("%08x %.*f\n", test.raw, (mirror < 1) ? -exp : 0, mirror);
+        Int32 _exp;
+        UInt32 factor;
+        test.getBinaryPowerProduct<UInt32>(factor, _exp);
+
+        //printf("%08x %d %06x %d %d\n", test.raw, test.getExponent(), factor, _exp, exp);
+        printf("%08x %.*f\n", test.raw, (exp < 0) ? -exp : 0, mirror);
+
+
     }
 
-    /*for(UInt32 i = 0; i < TrailingBitMask<UInt32>(31); ++i) {
+    /*for(UInt32 i = 0x1ffffff; i < TrailingBitMask<UInt32>(31); ++i) {
         Float32 test;
         test.setSign(0);
         test.setBinaryPowerProduct<UInt32>(status, round, i);

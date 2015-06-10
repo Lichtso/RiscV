@@ -45,11 +45,60 @@ class Float {
 	typedef typename Integer<totalBits>::unsigned_type RawType;
 	typedef typename Integer<exponentBits>::unsigned_type ExponentType;
 	typedef typename Integer<fieldBits>::unsigned_type FieldType;
+	typedef Int32 ExpDiffType;
 	const static ExponentType ExponentMax = TrailingBitMask<ExponentType>(exponentBits);
 	const static ExponentType ExponentOffset = ExponentMax>>1;
 	const static FieldType FieldMax = TrailingBitMask<FieldType>(fieldBits);
 
 	RawType raw;
+
+	bool getSign() {
+		return getBitsFrom(raw, totalBits-1, 1);
+	}
+
+	ExponentType getExponent() {
+		return getBitsFrom(raw, fieldBits, exponentBits);
+	}
+
+	FieldType getField() {
+		return getBitsFrom(raw, 0, fieldBits);
+	}
+
+	void negate() {
+		setSign(!getSign());
+	}
+
+	void setSign(bool sign) {
+		setBitsIn(raw, static_cast<RawType>(sign), totalBits-1, 1);
+	}
+
+	void setExponent(ExponentType exponent) {
+		setBitsIn(raw, static_cast<RawType>(exponent), fieldBits, exponentBits);
+	}
+
+	void setField(FieldType field) {
+		setBitsIn(raw, static_cast<RawType>(field), 0, fieldBits);
+	}
+
+	void setNaN(bool signaling) {
+		setExponent(ExponentMax);
+		setField(TrailingBitMask<FieldType>(fieldBits-signaling));
+	}
+
+	void setInfinite() {
+		setExponent(ExponentMax);
+		setField(0);
+	}
+
+	void setZero() {
+		setExponent(0);
+		setField(0);
+	}
+
+	void setOne() {
+		setExponent(ExponentOffset);
+		setField(0);
+	}
 
 	//private:
 	static FloatRoundingMode directRoundingMode(FloatRoundingMode round, bool sign) {
@@ -64,65 +113,86 @@ class Float {
 	}
 
 	template<typename FactorType>
-	void setBinaryPowerProduct(UInt8& status, FloatRoundingMode round, FactorType factor, Int64 exp = 0) {
+	void getBinaryPowerProduct(FactorType& factor, ExpDiffType& exp) {
+		static_assert(sizeof(factor) >= sizeof(FieldType), "FactorType to big to fit in FieldType");
+
+		exp = getExponent();
+		factor = getField();
+		if(exp == 0)
+			exp = -(fieldBits-1);
+		else{
+			factor |= 1<<fieldBits;
+			ExpDiffType shift = ctz<FactorType>(factor);
+			factor >>= shift;
+			exp += fieldBits-shift;
+		}
+		exp -= ExponentOffset;
+	}
+
+	template<typename FactorType>
+	void setBinaryPowerProduct(UInt8& status, FloatRoundingMode round, FactorType factor, ExpDiffType exp = 0) {
 		if(factor == 0) {
 			setZero();
 			return;
 		}
 
-		if(exp <= -ExponentOffset) {
-			exp += ExponentOffset+fieldBits-1;
-			if(exp < 0) {
-				status |= Overflow;
-				setZero();
-				return;
-			}
-			factor <<= exp;
-			if(factor < FieldMax) {
-				setExponent(0);
-				setField(factor);
-				return;
-			}else
-				exp = 1-fieldBits;
-		}else
-			exp += ExponentOffset;
-
 		FieldType field;
-		auto length = sizeof(FactorType)*8-clz<FactorType>(factor)-1;
-		if(length < fieldBits) {
-			exp += length;
-			length = fieldBits-length;
-			field = factor<<length;
-		}else{
-			exp += length;
-			length = length-fieldBits;
-			field = factor>>length;
+		ExpDiffType shift;
+		FloatStatusFlag onRound = Inexact;
 
-			if(length) {
-				FactorType rest = factor&TrailingBitMask<FactorType>(length);
-				if(rest) {
-					status |= Inexact;
-					FactorType treshold;
-					switch(round) {
-						case RoundNearest:
-							treshold = (1<<(length-1))-(field&1);
-						break;
-						case RoundMaxMagnitude:
-							treshold = 0;
-						break;
-						case RoundMinMagnitude:
-						default:
-							treshold = 1<<length;
-						break;
-					}
-					if(rest > treshold) {
-						field &= TrailingBitMask<FieldType>(fieldBits);
-						if(field == FieldMax) {
-							field = 0;
-							++exp;
-						}else
-							++field;
-					}
+		exp += ExponentOffset;
+		if(exp <= 0) {
+			shift = 1-fieldBits-exp;
+			if(shift <= 0) {
+				field = factor<<-shift;
+				if(field < FieldMax) {
+					setExponent(0);
+					setField(field);
+					return;
+				}
+			}else{
+				onRound = static_cast<FloatStatusFlag>(onRound|Underflow);
+				field = factor>>shift;
+				if(field < FieldMax) {
+					exp = 0;
+					goto roundRest;
+				}else
+					factor = field;
+			}
+		}
+
+		shift = sizeof(FactorType)*8-clz<FactorType>(factor)-1;
+		exp += shift;
+		shift -= fieldBits;
+
+		if(shift <= 0)
+			field = factor<<-shift;
+		else{
+			field = factor>>shift;
+
+			roundRest:
+			FactorType rest = factor&TrailingBitMask<FactorType>(shift);
+			if(rest) {
+				status |= onRound;
+				FactorType treshold;
+				switch(round) {
+					case RoundNearest:
+						treshold = (1<<(shift-1))-(field&1);
+					break;
+					case RoundMaxMagnitude:
+						treshold = 0;
+					break;
+					case RoundMinMagnitude:
+					default:
+						treshold = 1<<shift;
+					break;
+				}
+				if(rest > treshold) {
+					if((field&TrailingBitMask<FieldType>(fieldBits)) == FieldMax) {
+						//field = 0;
+						++exp;
+					}//else
+						++field;
 				}
 			}
 		}
@@ -202,53 +272,18 @@ class Float {
 		return classify(getSign(), getExponent(), getField());
 	}
 
-	bool getSign() {
-		return getBitsFrom(raw, totalBits-1, 1);
-	}
-
-	ExponentType getExponent() {
-		return getBitsFrom(raw, fieldBits, exponentBits);
-	}
-
-	FieldType getField() {
-		return getBitsFrom(raw, 0, fieldBits);
-	}
-
-	void setSign(bool sign) {
-		setBitsIn(raw, static_cast<RawType>(sign), totalBits-1, 1);
-	}
-
-	void setExponent(ExponentType exponent) {
-		setBitsIn(raw, static_cast<RawType>(exponent), fieldBits, exponentBits);
-	}
-
-	void setField(FieldType field) {
-		setBitsIn(raw, static_cast<RawType>(field), 0, fieldBits);
-	}
-
-	void setQuietNaN() {
-		setExponent(ExponentMax);
-		setField(TrailingBitMask<FieldType>(fieldBits));
-	}
-
-	void setSignalingNaN() {
-		setExponent(ExponentMax);
-		setField(TrailingBitMask<FieldType>(fieldBits-1));
-	}
-
-	void setInfinite() {
-		setExponent(ExponentMax);
-		setField(0);
-	}
-
-	void setZero() {
-		setExponent(0);
-		setField(0);
-	}
-
-	void setOne() {
-		setExponent(ExponentOffset);
-		setField(0);
+	template<typename FloatType>
+	void setFloat(UInt8& status, FloatRoundingMode round, FloatType other) {
+		FieldType factor;
+		ExpDiffType exp;
+		other.getBinaryPowerProduct(factor, exp);
+		if(other.getSign()) {
+			setSign(true);
+			setBinaryPowerProduct<FieldType>(status, directRoundingMode(round, true), factor, exp);
+		}else{
+			setSign(false);
+			setBinaryPowerProduct<FieldType>(status, directRoundingMode(round, false), factor, exp);
+		}
 	}
 
 	template<typename UIntType>
@@ -363,13 +398,13 @@ class Float {
 	void setExtremum(UInt8& status, Float a, Float b) {
 		FloatClass classA = a.getClass(), classB = b.getClass();
 		if(classA == FloatClass::SignalingNaN || classB == FloatClass::SignalingNaN) {
-			setQuietNaN();
+			setNaN(false);
 			return;
 		}
 
 		if(classA == FloatClass::QuietNaN) {
 			if(classB == FloatClass::QuietNaN)
-				setQuietNaN();
+				setNaN(false);
 			else
 				*this = b;
 		}else{
@@ -385,23 +420,50 @@ class Float {
 		}
 	}
 
-	/*static Float add(UInt8& status, Float a, Float b) {
-		bool signA = a.getSign(), signB = b.getSign();
-		ExponentType expA = a.getExponent(), expB = b.getExponent();
-		FieldType fieldA = a.getField(), fieldB = b.getField();
+	template<bool invertSign>
+	void sum(UInt8& status, FloatRoundingMode round, Float a, Float b) {
+		// TODO
 
-		Integer<exponentBits>::signed_type expDiff = expA-expB;
+		bool signA = a.getSign(), signB = b.getSign()^invertSign;
 
-		Float result;
 		if(signA == signB) { // Add
 
-			result.setSign(signA);
+			setSign(signA);
 		}else{ // Substract
+			if(signA) {
+
+			}else{
+
+			}
+		}
+	}
+
+	void product(UInt8& status, FloatRoundingMode round, Float a, Float b) {
+		// TODO
+
+		setSign(a.getSign()^b.getSign());
+		FieldType factorA, factorB, factorR;
+		ExpDiffType expA, expB, expR;
+		a.getBinaryPowerProduct(factorA, expA);
+		b.getBinaryPowerProduct(factorB, expB);
+
+		if(expA == expB) {
+			factorR = factorA*factorB;
+			expR = expA+expB;
+		}else{
 
 		}
 
-		return result;
-	}*/
+		setBinaryPowerProduct(status, round, factorR, expR);
+	}
+
+	void quotient(UInt8& status, FloatRoundingMode round, Float a, Float b) {
+		// TODO
+	}
+
+	void sqrt(UInt8& status, FloatRoundingMode round, Float radicand) {
+		// TODO
+	}
 };
 
 typedef Float<5, 10> Float16;
