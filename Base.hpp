@@ -54,7 +54,7 @@ unsigned_type getBitsFrom(unsigned_type data, UInt8 at, UInt8 len) {
 
 template<typename unsigned_type>
 void setBitsIn(unsigned_type& in, unsigned_type data, UInt8 at, UInt8 len) {
-	in &= (~TrailingBitMask<unsigned_type>(len))<<at;
+	in &= ~(TrailingBitMask<unsigned_type>(len)<<at);
 	in |= (data&TrailingBitMask<unsigned_type>(len))<<at;
 }
 

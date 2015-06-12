@@ -18,26 +18,34 @@ int main(int argc, char** argv) {
     UInt8 status = 0;
     FloatRoundingMode round = FloatRoundingMode::RoundNearest;
 
-    for(Int32 exp = -128-23-3; exp <= 128; ++exp) {
+    float a = 0.0131, b = 239.242, c = a/b;
+    //float a = 3.21331, b = 2.1, c = a*b;
+    Float32 _a, _b, _c;
+    _a.setFloat(a);
+    _b.setFloat(b);
+
+    _c.quotient(status, round, _a, _b);
+    printf("%f %f %.32f\n", a, b, c);
+    printf("%f %f %.32f\n", _a.getFloat<float>(), _b.getFloat<float>(), _c.getFloat<float>());
+
+    /*for(Int64 exp = -23; exp < 256; ++exp) {
         Float32 test;
         test.setSign(0);
-        test.setBinaryPowerProduct<UInt32>(status, round, 10, exp);
-        float mirror = *reinterpret_cast<float*>(&test.raw);
+        test.setNormalized<UInt32>(status, round, 1, exp);
+        float mirror = test.getFloat<float>();
 
-        Int32 _exp;
+        Int64 _exp;
         UInt32 factor;
-        test.getBinaryPowerProduct<UInt32>(factor, _exp);
+        test.getNormalized<UInt32>(factor, _exp);
 
-        //printf("%08x %d %06x %d %d\n", test.raw, test.getExponent(), factor, _exp, exp);
-        printf("%08x %.*f\n", test.raw, (exp < 0) ? -exp : 0, mirror);
+        printf("%08x %d %06x %lld %lld\n", test.raw, test.getExponent(), factor, _exp, exp);
+        //printf("%08x %.*f\n", test.raw, (exp-127 < 0) ? 127-exp : 0, mirror);
+    }*/
 
-
-    }
-
-    /*for(UInt32 i = 0x1ffffff; i < TrailingBitMask<UInt32>(31); ++i) {
+    /*for(UInt32 i = 0; i < TrailingBitMask<UInt32>(31); ++i) {
         Float32 test;
         test.setSign(0);
-        test.setBinaryPowerProduct<UInt32>(status, round, i);
+        test.setNormalized<UInt32>(status, round, i);
         float mirror = i;
         UInt32 mirrored = *reinterpret_cast<UInt32*>(&mirror);
         if(test.raw == mirrored) continue;
@@ -85,7 +93,7 @@ int main(int argc, char** argv) {
     data = instruction.encode32();
     ram.set<UInt32, false>(0x204, &data);
 
-    // Substract 1 from x1
+    // Subtract 1 from x1
     instruction.opcode = 0x13;
     instruction.reg[0] = 1;
     instruction.reg[1] = 1;

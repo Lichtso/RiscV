@@ -45,7 +45,7 @@ class Float {
 	typedef typename Integer<totalBits>::unsigned_type RawType;
 	typedef typename Integer<exponentBits>::unsigned_type ExponentType;
 	typedef typename Integer<fieldBits>::unsigned_type FieldType;
-	typedef Int32 ExpDiffType;
+	typedef Int64 LengthType;
 	const static ExponentType ExponentMax = TrailingBitMask<ExponentType>(exponentBits);
 	const static ExponentType ExponentOffset = ExponentMax>>1;
 	const static FieldType FieldMax = TrailingBitMask<FieldType>(fieldBits);
@@ -113,7 +113,7 @@ class Float {
 	}
 
 	template<typename FactorType>
-	void getBinaryPowerProduct(FactorType& factor, ExpDiffType& exp) {
+	void getNormalized(FactorType& factor, LengthType& exp) {
 		static_assert(sizeof(factor) >= sizeof(FieldType), "FactorType to big to fit in FieldType");
 
 		exp = getExponent();
@@ -122,25 +122,23 @@ class Float {
 			exp = -(fieldBits-1);
 		else{
 			factor |= 1<<fieldBits;
-			ExpDiffType shift = ctz<FactorType>(factor);
+			LengthType shift = ctz<FactorType>(factor);
 			factor >>= shift;
-			exp += fieldBits-shift;
+			exp += shift-fieldBits;
 		}
-		exp -= ExponentOffset;
 	}
 
 	template<typename FactorType>
-	void setBinaryPowerProduct(UInt8& status, FloatRoundingMode round, FactorType factor, ExpDiffType exp = 0) {
+	void setNormalized(UInt8& status, FloatRoundingMode round, FactorType factor, LengthType exp = ExponentOffset) {
 		if(factor == 0) {
 			setZero();
 			return;
 		}
 
 		FieldType field;
-		ExpDiffType shift;
+		LengthType shift;
 		FloatStatusFlag onRound = Inexact;
 
-		exp += ExponentOffset;
 		if(exp <= 0) {
 			shift = 1-fieldBits-exp;
 			if(shift <= 0) {
@@ -172,31 +170,29 @@ class Float {
 
 			roundRest:
 			FactorType rest = factor&TrailingBitMask<FactorType>(shift);
-			if(rest) {
-				status |= onRound;
-				FactorType treshold;
-				switch(round) {
-					case RoundNearest:
-						treshold = (1<<(shift-1))-(field&1);
-					break;
-					case RoundMaxMagnitude:
-						treshold = 0;
-					break;
-					case RoundMinMagnitude:
-					default:
-						treshold = 1<<shift;
-					break;
-				}
-				if(rest > treshold) {
-					if((field&TrailingBitMask<FieldType>(fieldBits)) == FieldMax) {
-						//field = 0;
-						++exp;
-					}//else
-						++field;
-				}
+			if(rest == 0)
+				goto end;
+			status |= onRound;
+			FactorType treshold;
+			switch(round) {
+				case RoundNearest:
+					treshold = (1<<(shift-1))-(field&1);
+				break;
+				case RoundMaxMagnitude:
+					treshold = 0;
+				break;
+				case RoundMinMagnitude:
+				default:
+					goto end;
 			}
+			if(rest <= treshold)
+				goto end;
+			if((field&TrailingBitMask<FieldType>(fieldBits)) == FieldMax)
+				++exp;
+			++field;
 		}
 
+		end:
 		if(exp >= ExponentMax) {
 			status |= Overflow;
 			setInfinite();
@@ -268,6 +264,16 @@ class Float {
 		return getExponent() == 0 && getField() == 0;
 	}*/
 
+	template<typename FloatType>
+	void setFloat(FloatType value) {
+		raw = *reinterpret_cast<UInt32*>(&value);
+	}
+
+	template<typename FloatType>
+	FloatType getFloat() {
+		return *reinterpret_cast<FloatType*>(&raw);
+	}
+
 	FloatClass getClass() {
 		return classify(getSign(), getExponent(), getField());
 	}
@@ -275,31 +281,31 @@ class Float {
 	template<typename FloatType>
 	void setFloat(UInt8& status, FloatRoundingMode round, FloatType other) {
 		FieldType factor;
-		ExpDiffType exp;
-		other.getBinaryPowerProduct(factor, exp);
+		LengthType exp;
+		other.getNormalized(factor, exp);
 		if(other.getSign()) {
 			setSign(true);
-			setBinaryPowerProduct<FieldType>(status, directRoundingMode(round, true), factor, exp);
+			setNormalized<FieldType>(status, directRoundingMode(round, true), factor, exp);
 		}else{
 			setSign(false);
-			setBinaryPowerProduct<FieldType>(status, directRoundingMode(round, false), factor, exp);
+			setNormalized<FieldType>(status, directRoundingMode(round, false), factor, exp);
 		}
 	}
 
 	template<typename UIntType>
 	void setUInt(UInt8& status, FloatRoundingMode round, UIntType value) {
 		setSign(false);
-		setBinaryPowerProduct<UIntType>(status, directRoundingMode(round, false), value);
+		setNormalized<UIntType>(status, directRoundingMode(round, false), value);
 	}
 
 	template<typename IntType>
 	void setInt(UInt8& status, FloatRoundingMode round, IntType value) {
 		if(value < 0) {
 			setSign(true);
-			setBinaryPowerProduct<IntType>(status, directRoundingMode(round, true), -value);
+			setNormalized<IntType>(status, directRoundingMode(round, true), -value);
 		}else{
 			setSign(false);
-			setBinaryPowerProduct<IntType>(status, directRoundingMode(round, false), value);
+			setNormalized<IntType>(status, directRoundingMode(round, false), value);
 		}
 	}
 
@@ -422,14 +428,27 @@ class Float {
 
 	template<bool invertSign>
 	void sum(UInt8& status, FloatRoundingMode round, Float a, Float b) {
-		// TODO
+		FieldType factorA, factorB;
+		LengthType expA, expB, exp;
+		a.getNormalized(factorA, expA);
+		b.getNormalized(factorB, expB);
+
+		if(expA > expB) {
+			exp = expA;
+			factorB >>= std::min(static_cast<LengthType>(fieldBits), expA-expB); // TODO rounding
+		}else{
+			exp = expB;
+			factorA >>= std::min(static_cast<LengthType>(fieldBits), expB-expA); // TODO rounding
+		}
 
 		bool signA = a.getSign(), signB = b.getSign()^invertSign;
-
 		if(signA == signB) { // Add
-
+			// TODO
+			typename Integer<fieldBits+1>::unsigned_type factor = factorA+factorB;
+			setNormalized(status, round, factor, exp);
 			setSign(signA);
-		}else{ // Substract
+		}else{ // Subtract
+			// TODO
 			if(signA) {
 
 			}else{
@@ -439,26 +458,35 @@ class Float {
 	}
 
 	void product(UInt8& status, FloatRoundingMode round, Float a, Float b) {
-		// TODO
-
+		typename Integer<fieldBits*2>::unsigned_type factorA, factorB;
+		LengthType expA, expB;
+		a.getNormalized(factorA, expA);
+		b.getNormalized(factorB, expB);
 		setSign(a.getSign()^b.getSign());
-		FieldType factorA, factorB, factorR;
-		ExpDiffType expA, expB, expR;
-		a.getBinaryPowerProduct(factorA, expA);
-		b.getBinaryPowerProduct(factorB, expB);
 
-		if(expA == expB) {
-			factorR = factorA*factorB;
-			expR = expA+expB;
-		}else{
-
-		}
-
-		setBinaryPowerProduct(status, round, factorR, expR);
+		setNormalized(status, round, factorA*factorB, expA+expB-ExponentOffset);
 	}
 
 	void quotient(UInt8& status, FloatRoundingMode round, Float a, Float b) {
-		// TODO
+		typename Integer<fieldBits*2>::unsigned_type factorA, factorB;
+		LengthType expA, expB;
+		a.getNormalized(factorA, expA);
+		b.getNormalized(factorB, expB);
+		setSign(a.getSign()^b.getSign());
+
+		if(factorB == 0) {
+			status |= DivideByZero;
+			if(factorA == 0)
+				setNaN(false);
+			else
+				setInfinite();
+			return;
+		}
+
+		LengthType shift = clz<decltype(factorA)>(factorA);
+		factorA <<= shift;
+		expA -= shift; // TODO : Prevent under/over flow
+		setNormalized(status, round, factorA/factorB, expA-expB+ExponentOffset);
 	}
 
 	void sqrt(UInt8& status, FloatRoundingMode round, Float radicand) {
@@ -469,4 +497,4 @@ class Float {
 typedef Float<5, 10> Float16;
 typedef Float<8, 23> Float32;
 typedef Float<11, 52> Float64;
-typedef Float<15, 112> Float128;
+//typedef Float<15, 112> Float128;

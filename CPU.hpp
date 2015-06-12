@@ -678,106 +678,139 @@ class CPU {
         }
     }
 
+    #define FloatInstructionAux \
+        if(!(EXT&F_Float)) \
+            throw Exception(Exception::Code::IllegalInstruction); \
+        UInt8& status = csr[csr_fflags]; \
+        FloatRoundingMode round = static_cast<FloatRoundingMode>(instruction.funct[1]); \
+        if(round == RoundDynamic) \
+            round = static_cast<FloatRoundingMode>((status>>5)&TrailingBitMask<UInt8>(3));
+
     void executeOpcode43(const Instruction& instruction) {
-        if(!(EXT&F_Float))
-            throw Exception(Exception::Code::IllegalInstruction);
-        /* R4-Type
-        FMADD.S rd,rs1,rs2,rs3 (F)
-        FMADD.D rd,rs1,rs2,rs3 (D)
-        */
-        // TODO: Float arithmetic
+        FloatInstructionAux
+
+        switch(instruction.funct[0]) {
+            case 0: // FMADD.S rd,rs1,rs2,rs3 (F)
+                regF[instruction.reg[0]].F32.multiply(status, round, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
+                regF[instruction.reg[0]].F32.template sum<false>(status, round, regF[instruction.reg[0]].F32, regF[instruction.reg[3]].F32);
+            break;
+            case 1: // FMADD.D rd,rs1,rs2,rs3 (F, D)
+                if(!(EXT&D_DoubleFloat))
+                    throw Exception(Exception::Code::IllegalInstruction);
+                regF[instruction.reg[0]].F64.multiply(status, round, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
+                regF[instruction.reg[0]].F64.template sum<false>(status, round, regF[instruction.reg[0]].F64, regF[instruction.reg[3]].F64);
+            break;
+        }
     }
 
     void executeOpcode47(const Instruction& instruction) {
-        if(!(EXT&F_Float))
-            throw Exception(Exception::Code::IllegalInstruction);
-        /* R4-Type
-        FMSUB.S rd,rs1,rs2,rs3 (F)
-        FMSUB.D rd,rs1,rs2,rs3 (D)
-        */
-        // TODO: Float arithmetic
+        FloatInstructionAux
+
+        switch(instruction.funct[0]) {
+            case 0: // FMSUB.S rd,rs1,rs2,rs3 (F)
+                regF[instruction.reg[0]].F32.multiply(status, round, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
+                regF[instruction.reg[0]].F32.template sum<true>(status, round, regF[instruction.reg[0]].F32, regF[instruction.reg[3]].F32);
+            break;
+            case 1: // FMSUB.D rd,rs1,rs2,rs3 (F, D)
+                if(!(EXT&D_DoubleFloat))
+                    throw Exception(Exception::Code::IllegalInstruction);
+                regF[instruction.reg[0]].F64.multiply(status, round, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
+                regF[instruction.reg[0]].F64.template sum<true>(status, round, regF[instruction.reg[0]].F64, regF[instruction.reg[3]].F64);
+            break;
+        }
     }
 
     void executeOpcode4B(const Instruction& instruction) {
-        if(!(EXT&F_Float))
-            throw Exception(Exception::Code::IllegalInstruction);
-        /* R4-Type
-        FNMSUB.S rd,rs1,rs2,rs3 (F)
-        FNMSUB.D rd,rs1,rs2,rs3 (D)
-        */
-        // TODO: Float arithmetic
+        FloatInstructionAux
+
+        switch(instruction.funct[0]) {
+            case 0: // FNMSUB.S rd,rs1,rs2,rs3 (F)
+                regF[instruction.reg[0]].F32.multiply(status, round, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
+                regF[instruction.reg[0]].F32.template sum<true>(status, round, regF[instruction.reg[0]].F32, regF[instruction.reg[3]].F32);
+                regF[instruction.reg[0]].F32.negate();
+            break;
+            case 1: // FNMSUB.D rd,rs1,rs2,rs3 (F, D)
+                if(!(EXT&D_DoubleFloat))
+                    throw Exception(Exception::Code::IllegalInstruction);
+                regF[instruction.reg[0]].F64.multiply(status, round, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
+                regF[instruction.reg[0]].F64.template sum<true>(status, round, regF[instruction.reg[0]].F64, regF[instruction.reg[3]].F64);
+                regF[instruction.reg[0]].F64.negate();
+            break;
+        }
     }
 
     void executeOpcode4F(const Instruction& instruction) {
-        if(!(EXT&F_Float))
-            throw Exception(Exception::Code::IllegalInstruction);
-        /* R4-Type
-        FNMADD.S rd,rs1,rs2,rs3 (F)
-        FNMADD.D rd,rs1,rs2,rs3 (D)
-        */
-        // TODO: Float arithmetic
+        FloatInstructionAux
+
+        switch(instruction.funct[0]) {
+            case 0: // FNMADD.S rd,rs1,rs2,rs3 (F)
+                regF[instruction.reg[0]].F32.multiply(status, round, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
+                regF[instruction.reg[0]].F32.template sum<false>(status, round, regF[instruction.reg[0]].F32, regF[instruction.reg[3]].F32);
+                regF[instruction.reg[0]].F32.negate();
+            break;
+            case 1: // FNMADD.D rd,rs1,rs2,rs3 (F, D)
+                if(!(EXT&D_DoubleFloat))
+                    throw Exception(Exception::Code::IllegalInstruction);
+                regF[instruction.reg[0]].F64.multiply(status, round, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
+                regF[instruction.reg[0]].F64.template sum<false>(status, round, regF[instruction.reg[0]].F64, regF[instruction.reg[3]].F64);
+                regF[instruction.reg[0]].F64.negate();
+            break;
+        }
     }
 
     void executeOpcode53(const Instruction& instruction) {
-        if(!(EXT&F_Float))
-            throw Exception(Exception::Code::IllegalInstruction);
+        FloatInstructionAux
 
-        UInt8& status = csr[csr_fflags];
-        FloatRoundingMode round = static_cast<FloatRoundingMode>(instruction.funct[1]);
-        if(round == RoundDynamic)
-            round = static_cast<FloatRoundingMode>((status>>5)&TrailingBitMask<UInt8>(3));
-
-        // TODO: R-Type float arithmetic
         switch(instruction.funct[0]) {
         	case 0x00: // FADD.S rd,rs1,rs2 (F)
-
+                regF[instruction.reg[0]].F32.template sum<false>(status, round, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
             break;
             case 0x01: // FADD.D rd,rs1,rs2 (F, D)
                 if(!(EXT&D_DoubleFloat))
                     throw Exception(Exception::Code::IllegalInstruction);
-                
+                regF[instruction.reg[0]].F64.template sum<false>(status, round, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
         	break;
         	case 0x04: // FSUB.S rd,rs1,rs2 (F)
-
+                regF[instruction.reg[0]].F32.template sum<true>(status, round, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
             break;
             case 0x05: // FSUB.D rd,rs1,rs2 (F, D)
                 if(!(EXT&D_DoubleFloat))
                     throw Exception(Exception::Code::IllegalInstruction);
-
+                regF[instruction.reg[0]].F64.template sum<true>(status, round, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
         	break;
         	case 0x08: // FMUL.S rd,rs1,rs2 (F)
-
+                regF[instruction.reg[0]].F32.product(status, round, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
             break;
             case 0x09: // FMUL.D rd,rs1,rs2 (F, D)
                 if(!(EXT&D_DoubleFloat))
                     throw Exception(Exception::Code::IllegalInstruction);
-
+                regF[instruction.reg[0]].F64.product(status, round, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
         	break;
         	case 0x0C: // FDIV.S rd,rs1,rs2 (F)
-
+                regF[instruction.reg[0]].F32.quotient(status, round, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
             break;
             case 0x0D: // FDIV.D rd,rs1,rs2 (F, D)
                 if(!(EXT&D_DoubleFloat))
                     throw Exception(Exception::Code::IllegalInstruction);
-
+                regF[instruction.reg[0]].F64.quotient(status, round, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
         	break;
             case 0x20: // FCVT.S.D rd,rs1 (F, D)
                 if(!(EXT&D_DoubleFloat))
                     throw Exception(Exception::Code::IllegalInstruction);
-
+                regF[instruction.reg[0]].F32.setFloat(regF[instruction.reg[0]].F64);
             break;
         	case 0x21: // FCVT.D.S rd,rs1 (F, D)
                 if(!(EXT&D_DoubleFloat))
                     throw Exception(Exception::Code::IllegalInstruction);
-
+                regF[instruction.reg[0]].F64.setFloat(regF[instruction.reg[0]].F32);
             break;
         	case 0x2C: // FSQRT.S rd,rs1 (F)
-
+                regF[instruction.reg[0]].F32.sqrt(status, round, regF[instruction.reg[1]].F32);
             break;
             case 0x2D: // FSQRT.D rd,rs1 (F, D)
                 if(!(EXT&D_DoubleFloat))
                     throw Exception(Exception::Code::IllegalInstruction);
-
+                regF[instruction.reg[0]].F64.sqrt(status, round, regF[instruction.reg[1]].F64);
             break;
         	case 0x10:
                 regF[instruction.reg[0]].F32 = regF[instruction.reg[1]].F32;
