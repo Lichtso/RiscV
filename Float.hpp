@@ -113,18 +113,48 @@ class Float {
 	}
 
 	template<typename FactorType>
-	void getNormalized(FactorType& factor, LengthType& exp) {
-		static_assert(sizeof(factor) >= sizeof(FieldType), "FactorType to big to fit in FieldType");
+	void getShiftedNormalized(FactorType& factor, LengthType targetExp) {
+		static_assert(sizeof(FactorType) >= sizeof(FieldType), "FactorType to big to fit in FieldType");
 
-		exp = getExponent();
+		LengthType exp = getExponent();
 		factor = getField();
 		if(exp == 0)
 			exp = -(fieldBits-1);
 		else{
 			factor |= 1<<fieldBits;
+			exp -= fieldBits;
+		}
+
+		LengthType shift = targetExp-exp;
+		if(shift <= 0)
+			factor <<= -shift;
+		else
+			factor >>= shift;
+	}
+
+	template<bool alignLow = true, typename FactorType>
+	void getNormalized(FactorType& factor, LengthType& exp) {
+		static_assert(sizeof(FactorType) >= sizeof(FieldType), "FactorType to big to fit in FieldType");
+
+		exp = getExponent();
+		factor = getField();
+		if(exp == 0) {
+			exp = -(fieldBits-1);
+			if(alignLow || factor == 0)
+				return;
+		}else{
+			factor |= 1<<fieldBits;
+			exp -= fieldBits;
+		}
+
+		if(alignLow) {
 			LengthType shift = ctz<FactorType>(factor);
 			factor >>= shift;
-			exp += shift-fieldBits;
+			exp += shift;
+		}else{
+			LengthType shift = clz<FactorType>(factor)-1;
+			factor <<= shift;
+			exp -= shift;
 		}
 	}
 
@@ -176,7 +206,7 @@ class Float {
 			FactorType treshold;
 			switch(round) {
 				case RoundNearest:
-					treshold = (1<<(shift-1))-(field&1);
+					treshold = (TrailingBitMask<FactorType>(1)<<(shift-1))-(field&1);
 				break;
 				case RoundMaxMagnitude:
 					treshold = 0;
@@ -401,7 +431,7 @@ class Float {
 	}
 
 	template<FloatComparison type>
-	void setExtremum(UInt8& status, Float a, Float b) {
+	void extremum(UInt8& status, Float a, Float b) {
 		FloatClass classA = a.getClass(), classB = b.getClass();
 		if(classA == FloatClass::SignalingNaN || classB == FloatClass::SignalingNaN) {
 			setNaN(false);
@@ -428,33 +458,28 @@ class Float {
 
 	template<bool invertSign>
 	void sum(UInt8& status, FloatRoundingMode round, Float a, Float b) {
-		FieldType factorA, factorB;
-		LengthType expA, expB, exp;
-		a.getNormalized(factorA, expA);
-		b.getNormalized(factorB, expB);
+		typename Integer<fieldBits*2>::unsigned_type factorA, factorB;
+		LengthType exp;
 
-		if(expA > expB) {
-			exp = expA;
-			factorB >>= std::min(static_cast<LengthType>(fieldBits), expA-expB); // TODO rounding
+		if(a.getExponent() >= b.getExponent()) {
+			a.getNormalized<false>(factorA, exp);
+			b.getShiftedNormalized(factorB, exp);
 		}else{
-			exp = expB;
-			factorA >>= std::min(static_cast<LengthType>(fieldBits), expB-expA); // TODO rounding
+			b.getNormalized<false>(factorB, exp);
+			a.getShiftedNormalized(factorA, exp);
 		}
 
 		bool signA = a.getSign(), signB = b.getSign()^invertSign;
-		if(signA == signB) { // Add
-			// TODO
-			typename Integer<fieldBits+1>::unsigned_type factor = factorA+factorB;
-			setNormalized(status, round, factor, exp);
+		if(signA == signB) {
+			factorA += factorB;
 			setSign(signA);
-		}else{ // Subtract
-			// TODO
-			if(signA) {
-
-			}else{
-
-			}
+		}else{
+			typename Integer<fieldBits*2>::signed_type factor = factorA-factorB;
+			bool signR = factor < 0;
+			factorA = (signR) ? -factor : factor;
+			setSign(signA^signR);
 		}
+		setNormalized(status, round, factorA, exp);
 	}
 
 	void product(UInt8& status, FloatRoundingMode round, Float a, Float b) {
@@ -470,7 +495,7 @@ class Float {
 	void quotient(UInt8& status, FloatRoundingMode round, Float a, Float b) {
 		typename Integer<fieldBits*2>::unsigned_type factorA, factorB;
 		LengthType expA, expB;
-		a.getNormalized(factorA, expA);
+		a.getNormalized<false>(factorA, expA);
 		b.getNormalized(factorB, expB);
 		setSign(a.getSign()^b.getSign());
 
@@ -483,14 +508,59 @@ class Float {
 			return;
 		}
 
-		LengthType shift = clz<decltype(factorA)>(factorA);
-		factorA <<= shift;
-		expA -= shift; // TODO : Prevent under/over flow
 		setNormalized(status, round, factorA/factorB, expA-expB+ExponentOffset);
 	}
 
 	void sqrt(UInt8& status, FloatRoundingMode round, Float radicand) {
-		// TODO
+		if(radicand.getSign()) {
+			status |= InvalidOperation;
+			setNaN(false);
+		}
+
+		{
+			FieldType factor, root = 1;
+			LengthType exp;
+			radicand.getNormalized(factor, exp);
+
+			if(factor == 0) {
+				setZero();
+				return;
+			}
+
+			while(true) {
+				printf("%u\n", root);
+				FieldType next = (root+factor/root)/2;
+				if(root == next) break;
+				root = next;
+			}
+
+			setNormalized(status, round, root, (exp-ExponentOffset)/2+ExponentOffset);
+			printf("< %f\n", getFloat<float>());
+		}
+
+		/*{
+			setSign(false);
+			setNormalized(status, round, 1, ExponentOffset);
+		}*/
+
+		{
+			Float half;
+			half.setSign(false);
+			half.setNormalized(status, round, 1, ExponentOffset-1);
+
+			while(true) {
+				// TODO
+
+				Float next;
+				next.quotient(status, round, radicand, *this);
+				next.sum<false>(status, round, next, *this);
+				next.product(status, round, next, half);
+				printf("%.50f\n", next.getFloat<float>());
+				auto cmp = compare<false>(status, *this, next);
+				if(cmp == FloatComparison::Equal || cmp == FloatComparison::Unordered) break;
+				*this = next;
+			}
+		}
 	}
 };
 

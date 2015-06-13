@@ -847,11 +847,11 @@ class CPU {
         	case 0x14:
                 switch(instruction.funct[1]) {
                     case 0: // FMIN.S rd,rs1,rs2 (F)
-                        regF[instruction.reg[0]].F32.setExtremum<FloatComparison::Less>(status,
+                        regF[instruction.reg[0]].F32.extremum<FloatComparison::Less>(status,
                             regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
                     break;
                     case 1: // FMAX.S rd,rs1,rs2 (F)
-                        regF[instruction.reg[0]].F32.setExtremum<FloatComparison::Greater>(status,
+                        regF[instruction.reg[0]].F32.extremum<FloatComparison::Greater>(status,
                             regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
                     break;
                 }
@@ -861,11 +861,11 @@ class CPU {
                     throw Exception(Exception::Code::IllegalInstruction);
                 switch(instruction.funct[1]) {
                     case 0: // FMIN.D rd,rs1,rs2 (F, D)
-                        regF[instruction.reg[0]].F64.setExtremum<FloatComparison::Less>(status,
+                        regF[instruction.reg[0]].F64.extremum<FloatComparison::Less>(status,
                             regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
                     break;
                     case 1: // FMAX.D rd,rs1,rs2 (F, D)
-                        regF[instruction.reg[0]].F64.setExtremum<FloatComparison::Greater>(status,
+                        regF[instruction.reg[0]].F64.extremum<FloatComparison::Greater>(status,
                             regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
                     break;
                 }

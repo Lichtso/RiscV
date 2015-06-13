@@ -1,4 +1,5 @@
 #include "CPU.hpp"
+#include <cmath>
 #include <cfenv>
 
 RAM ram;
@@ -17,16 +18,22 @@ int main(int argc, char** argv) {
 
     UInt8 status = 0;
     FloatRoundingMode round = FloatRoundingMode::RoundNearest;
+    std::fesetround(FE_TONEAREST);
 
-    float a = 0.0131, b = 239.242, c = a/b;
-    //float a = 3.21331, b = 2.1, c = a*b;
+    //float a = 239.242, b = 0.0131, c = a+b;
+    float a = 239.242, b = std::sqrt(a);
     Float32 _a, _b, _c;
     _a.setFloat(a);
-    _b.setFloat(b);
+    //_b.setFloat(b);
+    //_c.sum<false>(status, round, _a, _b);
+    _b.sqrt(status, round, _a);
+    printf("%f %.32f\n", a, b);
+    printf("%f %.32f\n", _a.getFloat<float>(), _b.getFloat<float>());
+    printf("%.32f %.32f\n", b*b, _b.getFloat<float>()*_b.getFloat<float>());
 
-    _c.quotient(status, round, _a, _b);
-    printf("%f %f %.32f\n", a, b, c);
-    printf("%f %f %.32f\n", _a.getFloat<float>(), _b.getFloat<float>(), _c.getFloat<float>());
+    _a.setFloat(b);
+    printf("%08x %08x\n", _a.getField(), _b.getField());
+    printf("%lld %lld\n", _a.getExponent(), _b.getExponent());
 
     /*for(Int64 exp = -23; exp < 256; ++exp) {
         Float32 test;
