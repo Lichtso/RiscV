@@ -64,6 +64,22 @@ class Float {
 		return getBitsFrom(raw, 0, fieldBits);
 	}
 
+	bool isNaN() {
+		return getExponent() == ExponentMax && getField() != 0;
+	}
+
+	bool isInfinite() {
+		return getExponent() == ExponentMax && getField() == 0;
+	}
+
+	bool isSubnormal() {
+		return getExponent() == 0 && getField() != 0;
+	}
+
+	bool isZero() {
+		return getExponent() == 0 && getField() == 0;
+	}
+
 	void negate() {
 		setSign(!getSign());
 	}
@@ -100,7 +116,7 @@ class Float {
 		setField(0);
 	}
 
-	//private:
+	private:
 	static FloatRoundingMode directRoundingMode(FloatRoundingMode round, bool sign) {
 		switch(round) {
 			case RoundDown:
@@ -121,7 +137,7 @@ class Float {
 		if(exp == 0)
 			exp = -(fieldBits-1);
 		else{
-			factor |= 1<<fieldBits;
+			factor |= TrailingBitMask<FactorType>(1)<<fieldBits;
 			exp -= fieldBits;
 		}
 
@@ -143,7 +159,7 @@ class Float {
 			if(alignLow || factor == 0)
 				return;
 		}else{
-			factor |= 1<<fieldBits;
+			factor |= TrailingBitMask<FactorType>(1)<<fieldBits;
 			exp -= fieldBits;
 		}
 
@@ -278,22 +294,6 @@ class Float {
 	}
 
 	public:
-	/*bool isNaN() {
-		return getExponent() == ExponentMax && getField() != 0;
-	}
-
-	bool isInfinite() {
-		return getExponent() == ExponentMax && getField() == 0;
-	}
-
-	bool isSubnormal() {
-		return getExponent() == 0 && getField() != 0;
-	}
-
-	bool isZero() {
-		return getExponent() == 0 && getField() == 0;
-	}*/
-
 	template<typename FloatType>
 	void setFloat(FloatType value) {
 		raw = *reinterpret_cast<UInt32*>(&value);
@@ -517,48 +517,41 @@ class Float {
 			setNaN(false);
 		}
 
-		{
-			FieldType factor, root = 1;
-			LengthType exp;
-			radicand.getNormalized(factor, exp);
+		FieldType factor, root = 1;
+		LengthType exp;
+		radicand.getNormalized(factor, exp);
 
-			if(factor == 0) {
-				setZero();
-				return;
-			}
-
-			while(true) {
-				printf("%u\n", root);
-				FieldType next = (root+factor/root)/2;
-				if(root == next) break;
-				root = next;
-			}
-
-			setNormalized(status, round, root, (exp-ExponentOffset)/2+ExponentOffset);
-			printf("< %f\n", getFloat<float>());
+		if(factor == 0) {
+			setZero();
+			return;
 		}
 
-		/*{
-			setSign(false);
-			setNormalized(status, round, 1, ExponentOffset);
-		}*/
+		while(true) {
+			FieldType next = (root+factor/root)/2;
+			if(root == next) break;
+			root = next;
+		}
 
-		{
-			Float half;
-			half.setSign(false);
-			half.setNormalized(status, round, 1, ExponentOffset-1);
+		setNormalized(status, round, root, (exp-ExponentOffset)/2+ExponentOffset);
+		//setUInt(status, round, 1);
 
-			while(true) {
-				// TODO
+		Float half;
+		half.setSign(false);
+		half.setNormalized(status, round, 1, ExponentOffset-1);
 
-				Float next;
-				next.quotient(status, round, radicand, *this);
-				next.sum<false>(status, round, next, *this);
-				next.product(status, round, next, half);
-				printf("%.50f\n", next.getFloat<float>());
-				auto cmp = compare<false>(status, *this, next);
-				if(cmp == FloatComparison::Equal || cmp == FloatComparison::Unordered) break;
-				*this = next;
+		while(true) {
+			Float prev = *this, quotient;
+			quotient.quotient(status, round, radicand, *this);
+			sum<false>(status, round, *this, quotient);
+			product(status, round, *this, half);
+
+			auto cmp = compare<false>(status, *this, prev);
+			if(cmp == FloatComparison::Equal || cmp == FloatComparison::Unordered) {
+				Float error;
+				error.sum<true>(status, round, quotient, *this);
+				if(error.getSign())
+					*this = quotient;
+				break;
 			}
 		}
 	}

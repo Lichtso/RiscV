@@ -176,7 +176,7 @@ class CPU {
         for(UInt8 i = 1; i < 32; ++i)
             out << std::setw(2) << static_cast<UInt16>(i) << " : " << std::setw(16) << regX[i].U << std::endl;
         for(UInt8 i = 0; i < 32; ++i)
-            out << std::setw(2) << static_cast<UInt16>(i) << " : " << regF[i].F << std::endl;
+            out << std::setw(2) << static_cast<UInt16>(i) << " : " << regF[i].F64.template getFloat<double>() << std::endl;
         out << std::endl;
     }
 
@@ -681,7 +681,7 @@ class CPU {
     #define FloatInstructionAux \
         if(!(EXT&F_Float)) \
             throw Exception(Exception::Code::IllegalInstruction); \
-        UInt8& status = csr[csr_fflags]; \
+        /*UInt8& status = csr[csr_fflags]; TODO*/ UInt8 status = 0; \
         FloatRoundingMode round = static_cast<FloatRoundingMode>(instruction.funct[1]); \
         if(round == RoundDynamic) \
             round = static_cast<FloatRoundingMode>((status>>5)&TrailingBitMask<UInt8>(3));
@@ -691,13 +691,13 @@ class CPU {
 
         switch(instruction.funct[0]) {
             case 0: // FMADD.S rd,rs1,rs2,rs3 (F)
-                regF[instruction.reg[0]].F32.multiply(status, round, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
+                regF[instruction.reg[0]].F32.product(status, round, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
                 regF[instruction.reg[0]].F32.template sum<false>(status, round, regF[instruction.reg[0]].F32, regF[instruction.reg[3]].F32);
             break;
             case 1: // FMADD.D rd,rs1,rs2,rs3 (F, D)
                 if(!(EXT&D_DoubleFloat))
                     throw Exception(Exception::Code::IllegalInstruction);
-                regF[instruction.reg[0]].F64.multiply(status, round, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
+                regF[instruction.reg[0]].F64.product(status, round, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
                 regF[instruction.reg[0]].F64.template sum<false>(status, round, regF[instruction.reg[0]].F64, regF[instruction.reg[3]].F64);
             break;
         }
@@ -708,13 +708,13 @@ class CPU {
 
         switch(instruction.funct[0]) {
             case 0: // FMSUB.S rd,rs1,rs2,rs3 (F)
-                regF[instruction.reg[0]].F32.multiply(status, round, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
+                regF[instruction.reg[0]].F32.product(status, round, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
                 regF[instruction.reg[0]].F32.template sum<true>(status, round, regF[instruction.reg[0]].F32, regF[instruction.reg[3]].F32);
             break;
             case 1: // FMSUB.D rd,rs1,rs2,rs3 (F, D)
                 if(!(EXT&D_DoubleFloat))
                     throw Exception(Exception::Code::IllegalInstruction);
-                regF[instruction.reg[0]].F64.multiply(status, round, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
+                regF[instruction.reg[0]].F64.product(status, round, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
                 regF[instruction.reg[0]].F64.template sum<true>(status, round, regF[instruction.reg[0]].F64, regF[instruction.reg[3]].F64);
             break;
         }
@@ -725,14 +725,14 @@ class CPU {
 
         switch(instruction.funct[0]) {
             case 0: // FNMSUB.S rd,rs1,rs2,rs3 (F)
-                regF[instruction.reg[0]].F32.multiply(status, round, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
+                regF[instruction.reg[0]].F32.product(status, round, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
                 regF[instruction.reg[0]].F32.template sum<true>(status, round, regF[instruction.reg[0]].F32, regF[instruction.reg[3]].F32);
                 regF[instruction.reg[0]].F32.negate();
             break;
             case 1: // FNMSUB.D rd,rs1,rs2,rs3 (F, D)
                 if(!(EXT&D_DoubleFloat))
                     throw Exception(Exception::Code::IllegalInstruction);
-                regF[instruction.reg[0]].F64.multiply(status, round, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
+                regF[instruction.reg[0]].F64.product(status, round, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
                 regF[instruction.reg[0]].F64.template sum<true>(status, round, regF[instruction.reg[0]].F64, regF[instruction.reg[3]].F64);
                 regF[instruction.reg[0]].F64.negate();
             break;
@@ -744,14 +744,14 @@ class CPU {
 
         switch(instruction.funct[0]) {
             case 0: // FNMADD.S rd,rs1,rs2,rs3 (F)
-                regF[instruction.reg[0]].F32.multiply(status, round, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
+                regF[instruction.reg[0]].F32.product(status, round, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
                 regF[instruction.reg[0]].F32.template sum<false>(status, round, regF[instruction.reg[0]].F32, regF[instruction.reg[3]].F32);
                 regF[instruction.reg[0]].F32.negate();
             break;
             case 1: // FNMADD.D rd,rs1,rs2,rs3 (F, D)
                 if(!(EXT&D_DoubleFloat))
                     throw Exception(Exception::Code::IllegalInstruction);
-                regF[instruction.reg[0]].F64.multiply(status, round, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
+                regF[instruction.reg[0]].F64.product(status, round, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
                 regF[instruction.reg[0]].F64.template sum<false>(status, round, regF[instruction.reg[0]].F64, regF[instruction.reg[3]].F64);
                 regF[instruction.reg[0]].F64.negate();
             break;
@@ -847,11 +847,11 @@ class CPU {
         	case 0x14:
                 switch(instruction.funct[1]) {
                     case 0: // FMIN.S rd,rs1,rs2 (F)
-                        regF[instruction.reg[0]].F32.extremum<FloatComparison::Less>(status,
+                        regF[instruction.reg[0]].F32.template extremum<FloatComparison::Less>(status,
                             regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
                     break;
                     case 1: // FMAX.S rd,rs1,rs2 (F)
-                        regF[instruction.reg[0]].F32.extremum<FloatComparison::Greater>(status,
+                        regF[instruction.reg[0]].F32.template extremum<FloatComparison::Greater>(status,
                             regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
                     break;
                 }
@@ -861,11 +861,11 @@ class CPU {
                     throw Exception(Exception::Code::IllegalInstruction);
                 switch(instruction.funct[1]) {
                     case 0: // FMIN.D rd,rs1,rs2 (F, D)
-                        regF[instruction.reg[0]].F64.extremum<FloatComparison::Less>(status,
+                        regF[instruction.reg[0]].F64.template extremum<FloatComparison::Less>(status,
                             regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
                     break;
                     case 1: // FMAX.D rd,rs1,rs2 (F, D)
-                        regF[instruction.reg[0]].F64.extremum<FloatComparison::Greater>(status,
+                        regF[instruction.reg[0]].F64.template extremum<FloatComparison::Greater>(status,
                             regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
                     break;
                 }
