@@ -5,6 +5,8 @@ class RAM {
     public:
     UInt8 size;
     std::unique_ptr<UInt8> data;
+    std::recursive_mutex sealsMutex;
+    std::set<std::pair<AddressType, UInt8>> seals;
 
     void setSize(UInt8 _size) {
         size = _size;
@@ -40,10 +42,37 @@ class RAM {
 
     template<typename type, bool aligned>
     void set(AddressType address, type* value) {
+        std::lock_guard<std::recursive_mutex> lock(sealsMutex);
+        for(auto iter = seals.begin(); iter != seals.end(); )
+            if((address >= iter->first && address < iter->first+iter->second) ||
+               (iter->first >= address && iter->first < address+sizeof(type)))
+                seals.erase(iter);
+            else
+                ++iter;
+
         if(aligned)
             *reinterpret_cast<type*>(data.get()+address) = *value;
         else
             memcpy(data.get()+address, value, sizeof(type));
+    }
+
+    void seal(std::set<std::pair<AddressType, UInt8>>& prev, std::set<std::pair<AddressType, UInt8>> next) {
+        std::lock_guard<std::recursive_mutex> lock(sealsMutex);
+        for(auto entry : prev)
+            seals.erase(entry);
+        prev.clear();
+        for(auto entry : next) {
+            prev.insert(entry);
+            seals.insert(entry);
+        }
+    }
+
+    bool unseal(const std::pair<AddressType, UInt8>& entry) {
+        auto iter = seals.find(entry);
+        if(iter == seals.end())
+            return false;
+        seals.erase(iter);
+        return true;
     }
 };
 

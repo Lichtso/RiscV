@@ -61,6 +61,7 @@ class CPU {
         FloatType F;
     } regF[32];
     std::map<UInt16, UIntType> csr;
+    std::set<std::pair<AddressType, UInt8>> seals;
 
     constexpr UInt8 getLevels() {
         if(EXT&H_HypervisorMode) return 4;
@@ -202,6 +203,16 @@ class CPU {
 
     void writeCSR(UInt16 index, UIntType value) {
         csr[index] = value;
+    }
+
+    void seal(UIntType address, UInt8 length) {
+        std::pair<AddressType, UInt8> entry(address, length);
+        ram.seal(seals, { entry });
+    }
+
+    bool unseal(UIntType address, UInt8 length) {
+        std::pair<AddressType, UInt8> entry(address, length);
+        return ram.unseal(entry);
     }
 
     template<typename type, bool store, bool aligned>
@@ -519,31 +530,112 @@ class CPU {
     void executeOpcode2F(const Instruction& instruction) {
         if(!(EXT&A_AtomicOperations))
             throw Exception(Exception::Code::IllegalInstruction);
-        /* U-Type
-        LR.W rd,rs1 (A)
-        SC.W rd,rs1,rs2 (A)
-        AMOSWAP.W rd,rs1,rs2 (A)
-        AMOADD.W rd,rs1,rs2 (A)
-        AMOXOR.W rd,rs1,rs2 (A)
-        AMOAND.W rd,rs1,rs2 (A)
-        AMOOR.W rd,rs1,rs2 (A)
-        AMOMIN.W rd,rs1,rs2 (A)
-        AMOMAX.W rd,rs1,rs2 (A)
-        AMOMINU.W rd,rs1,rs2 (A)
-        AMOMAXU.W rd,rs1,rs2 (A)
-        LR.D rd,rs1 (A, 64)
-        SC.D rd,rs1,rs2 (A, 64)
-        AMOSWAP.D rd,rs1,rs2 (A, 64)
-        AMOADD.D rd,rs1,rs2 (A, 64)
-        AMOXOR.D rd,rs1,rs2 (A, 64)
-        AMOAND.D rd,rs1,rs2 (A, 64)
-        AMOOR.D rd,rs1,rs2 (A, 64)
-        AMOMIN.D rd,rs1,rs2 (A, 64)
-        AMOMAX.D rd,rs1,rs2 (A, 64)
-        AMOMINU.D rd,rs1,rs2 (A, 64)
-        AMOMAXU.D rd,rs1,rs2 (A, 64)
-        */
-        // TODO : Multi core
+        UInt8 funct = instruction.funct[0]&~TrailingBitMask<UInt8>(2);
+        UIntType address = readRegXU(instruction.reg[1]);
+
+        if(instruction.funct[1] == 2) {
+            Int32 data;
+            if(funct != 12) {
+                seal(address, sizeof(data));
+                memoryAccess<decltype(data), false, false>(LoadData, address, &data);
+                writeRegXU(instruction.reg[0], data);
+            }
+
+            switch(funct) {
+                case 0: // AMOADD.W rd,rs1,rs2 (A)
+                    data += readRegXI(instruction.reg[2]);
+                break;
+                case 4: // AMOSWAP.W rd,rs1,rs2 (A)
+                    data = readRegXI(instruction.reg[2]);
+                break;
+                case 8: // LR.W rd,rs1 (A)
+                return;
+                case 12: // SC.W rd,rs1,rs2 (A)
+                    data = readRegXI(instruction.reg[2]);
+                break;
+                case 16: // AMOXOR.W rd,rs1,rs2 (A)
+                    data ^= readRegXI(instruction.reg[2]);
+                break;
+                case 32: // AMOOR.W rd,rs1,rs2 (A)
+                    data |= readRegXI(instruction.reg[2]);
+                break;
+                case 48: // AMOAND.W rd,rs1,rs2 (A)
+                    data &= readRegXI(instruction.reg[2]);
+                break;
+                case 64: // AMOMIN.W rd,rs1,rs2 (A)
+                    data = std::min(data, static_cast<Int32>(readRegXI(instruction.reg[2])));
+                break;
+                case 80: // AMOMAX.W rd,rs1,rs2 (A)
+                    data = std::max(data, static_cast<Int32>(readRegXI(instruction.reg[2])));
+                break;
+                case 96: // AMOMINU.W rd,rs1,rs2 (A)
+                    data = std::min(static_cast<UInt32>(data), static_cast<UInt32>(readRegXI(instruction.reg[2])));
+                break;
+                case 112: // AMOMAXU.W rd,rs1,rs2 (A)
+                    data = std::max(static_cast<UInt32>(data), static_cast<UInt32>(readRegXI(instruction.reg[2])));
+                break;
+            }
+
+            std::lock_guard<std::recursive_mutex> lock(ram.sealsMutex);
+            if(unseal(address, sizeof(data))) {
+                memoryAccess<decltype(data), true, false>(StoreData, address, &data);
+                writeRegXU(instruction.reg[0], 0);
+            }else
+                writeRegXU(instruction.reg[0], 1);
+        }else if(instruction.funct[1] == 3) {
+            if(XLEN < 64)
+                throw Exception(Exception::Code::IllegalInstruction);
+
+            Int64 data;
+            if(funct != 12) {
+                seal(address, sizeof(data));
+                memoryAccess<decltype(data), false, false>(LoadData, address, &data);
+                writeRegXU(instruction.reg[0], data);
+            }
+
+            switch(funct) {
+                case 0: // AMOADD.D rd,rs1,rs2 (A, 64)
+                    data += readRegXI(instruction.reg[2]);
+                break;
+                case 4: // AMOSWAP.D rd,rs1,rs2 (A, 64)
+                    data = readRegXI(instruction.reg[2]);
+                break;
+                case 8: // LR.D rd,rs1 (A, 64)
+                return;
+                case 12: // SC.D rd,rs1,rs2 (A, 64)
+                    data = readRegXI(instruction.reg[2]);
+                break;
+                case 16: // AMOXOR.D rd,rs1,rs2 (A, 64)
+                    data ^= readRegXI(instruction.reg[2]);
+                break;
+                case 32: // AMOOR.D rd,rs1,rs2 (A, 64)
+                    data |= readRegXI(instruction.reg[2]);
+                break;
+                case 48: // AMOAND.D rd,rs1,rs2 (A, 64)
+                    data &= readRegXI(instruction.reg[2]);
+                break;
+                case 64: // AMOMIN.D rd,rs1,rs2 (A, 64)
+                    data = std::min(data, static_cast<Int64>(readRegXI(instruction.reg[2])));
+                break;
+                case 80: // AMOMAX.D rd,rs1,rs2 (A, 64)
+                    data = std::max(data, static_cast<Int64>(readRegXI(instruction.reg[2])));
+                break;
+                case 96: // AMOMINU.D rd,rs1,rs2 (A, 64)
+                    data = std::min(static_cast<UInt64>(data), static_cast<UInt64>(readRegXI(instruction.reg[2])));
+                break;
+                case 112: // AMOMAXU.D rd,rs1,rs2 (A, 64)
+                    data = std::max(static_cast<UInt64>(data), static_cast<UInt64>(readRegXI(instruction.reg[2])));
+                break;
+            }
+
+            std::lock_guard<std::recursive_mutex> lock(ram.sealsMutex);
+            if(unseal(address, sizeof(data))) {
+                memoryAccess<decltype(data), true, false>(StoreData, address, &data);
+                writeRegXU(instruction.reg[0], 0);
+            }else
+                writeRegXU(instruction.reg[0], 1);
+        }else
+            throw Exception(Exception::Code::IllegalInstruction);
     }
 
     void executeOpcode33(const Instruction& instruction) {
