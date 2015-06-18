@@ -1,4 +1,6 @@
-#pragma once
+#ifndef FLOAT
+#define FLOAT
+
 #include "Base.hpp"
 
 enum FloatRoundingMode {
@@ -561,3 +563,5 @@ typedef Float<5, 10> Float16;
 typedef Float<8, 23> Float32;
 typedef Float<11, 52> Float64;
 //typedef Float<15, 112> Float128;
+
+#endif

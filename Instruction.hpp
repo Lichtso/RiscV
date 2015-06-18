@@ -1,4 +1,6 @@
-#pragma once
+#ifndef INSTRUCTION
+#define INSTRUCTION
+
 #include "Exception.hpp"
 
 class Instruction {
@@ -18,3 +20,5 @@ class Instruction {
 	UInt32 encode32() const;
 	Type getType() const;
 };
+
+#endif

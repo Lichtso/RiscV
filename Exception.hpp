@@ -1,4 +1,6 @@
-#pragma once
+#ifndef EXPECTION
+#define EXPECTION
+
 #include "Float.hpp"
 
 class Exception {
@@ -35,3 +37,5 @@ class MemoryAccessException : public Exception {
         address(_address)
         { }
 };
+
+#endif

@@ -1,4 +1,6 @@
-#pragma once
+#ifndef CPU
+#define CPU
+
 #include "CSR.hpp"
 
 enum ISAExtensions {
@@ -31,7 +33,7 @@ enum ISAExtensions {
 };
 
 template<UInt8 XLEN = 64, ISAExtensions EXT = I_BaseISA>
-class CPU {
+class Cpu {
     public:
     typedef typename std::conditional<XLEN == 32, Int32, typename std::conditional<XLEN == 64, Int64, Int128>::type>::type IntType;
     typedef typename std::conditional<XLEN == 32, UInt32, typename std::conditional<XLEN == 64, UInt64, UInt128>::type>::type UIntType;
@@ -148,7 +150,7 @@ class CPU {
         csr[csr_mfromhost] = 0; // TODO
     }
 
-    CPU(UIntType index = 0) {
+    Cpu(UIntType index = 0) {
         reset();
 
         UIntType mcpuid;
@@ -1426,3 +1428,5 @@ class CPU {
         return false;
     }
 };
+
+#endif

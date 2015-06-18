@@ -1,7 +1,9 @@
-#pragma once
+#ifndef RAM
+#define RAM
+
 #include "Disassembler.hpp"
 
-class RAM {
+class Ram {
     public:
     UInt8 size;
     std::unique_ptr<UInt8> data;
@@ -13,7 +15,7 @@ class RAM {
         data.reset((size) ? new UInt8[1ULL<<size] : NULL);
     }
 
-    RAM() :size(0) { }
+    Ram() :size(0) { }
 
     void dump(std::ostream& out) {
         if(size < 6) return;
@@ -76,4 +78,5 @@ class RAM {
     }
 };
 
-extern RAM ram;
+extern Ram ram;
+#endif

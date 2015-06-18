@@ -6,7 +6,9 @@
 	Do not use them in production or any other projects!
 */
 
-#pragma once
+#ifndef DISASSEMBLER
+#define DISASSEMBLER
+
 #include "Instruction.hpp"
 
 class Disassembler {
@@ -64,3 +66,5 @@ class Assembler {
 	bool writeToFile(const std::string& path);
 	bool readFromFile(const std::string& path);
 };
+
+#endif

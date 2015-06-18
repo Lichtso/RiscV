@@ -2,8 +2,8 @@
 #include <cmath>
 #include <cfenv>
 
-RAM ram;
-CPU<> cpu;
+Ram ram;
+Cpu<> cpu;
 
 int main(int argc, char** argv) {
     if(argc == 4) {

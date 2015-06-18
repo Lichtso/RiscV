@@ -1,4 +1,6 @@
-#pragma once
+#ifndef CSR
+#define CSR
+
 #include "RAM.hpp"
 
 enum CSR {
@@ -69,3 +71,5 @@ enum CSR {
     csr_mtohost = 0x780,
     csr_mfromhost = 0x781
 };
+
+#endif

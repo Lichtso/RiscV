@@ -1,4 +1,6 @@
-#pragma once
+#ifndef BASE
+#define BASE
+
 #include <typeinfo>
 #include <type_traits>
 #include <functional>
@@ -114,3 +116,5 @@ namespace std {
     	return trimFromBegin(trimFromEnd(s));
 	}
 }
+
+#endif
