@@ -348,6 +348,7 @@ class Cpu {
 
     void executeOpcode03(const Instruction& instruction) {
         UIntType address = readRegXU(instruction.reg[1])+instruction.imm;
+        address = translate(LoadData, address);
         switch(instruction.funct[0]) {
             case 0: { // LB rd,rs1,imm
                 Int8 data;
@@ -397,6 +398,7 @@ class Cpu {
         if(!(EXT&F_Float))
             throw Exception(Exception::Code::IllegalInstruction);
         UIntType address = readRegXU(instruction.reg[1])+instruction.imm;
+        address = translate(LoadData, address);
         switch(instruction.funct[0]) {
             case 2: { // FLW rd,rs1,imm (F)
                 memoryAccess<UInt32, false, false>(LoadData, address, &regF[instruction.reg[0]].F32.raw);
@@ -489,6 +491,7 @@ class Cpu {
 
     void executeOpcode23(const Instruction& instruction) {
         UIntType address = readRegXU(instruction.reg[1])+instruction.imm;
+        address = translate(StoreData, address);
         switch(instruction.funct[0]) {
             case 0: { // SB rs1,rs2,imm
                 UInt8 data = readRegXU(instruction.reg[2]);
@@ -517,6 +520,7 @@ class Cpu {
         if(!(EXT&F_Float))
             throw Exception(Exception::Code::IllegalInstruction);
         UIntType address = readRegXU(instruction.reg[1])+instruction.imm;
+        address = translate(StoreData, address);
         switch(instruction.funct[0]) {
             case 2: { // FSW rd,rs1,imm (F)
                 memoryAccess<UInt32, true, false>(StoreData, address, &regF[instruction.reg[0]].F32.raw);
@@ -534,12 +538,13 @@ class Cpu {
             throw Exception(Exception::Code::IllegalInstruction);
         UInt8 funct = instruction.funct[0]&~TrailingBitMask<UInt8>(2);
         UIntType address = readRegXU(instruction.reg[1]);
+        address = translate(StoreData, address);
 
         if(instruction.funct[1] == 2) {
             Int32 data;
             if(funct != 12) {
                 seal(address, sizeof(data));
-                memoryAccess<decltype(data), false, false>(LoadData, address, &data);
+                memoryAccess<decltype(data), false, true>(LoadData, address, &data);
                 writeRegXU(instruction.reg[0], data);
             }
 
@@ -580,7 +585,7 @@ class Cpu {
 
             std::lock_guard<std::recursive_mutex> lock(ram.sealsMutex);
             if(unseal(address, sizeof(data))) {
-                memoryAccess<decltype(data), true, false>(StoreData, address, &data);
+                memoryAccess<decltype(data), true, true>(StoreData, address, &data);
                 writeRegXU(instruction.reg[0], 0);
             }else
                 writeRegXU(instruction.reg[0], 1);
@@ -591,7 +596,7 @@ class Cpu {
             Int64 data;
             if(funct != 12) {
                 seal(address, sizeof(data));
-                memoryAccess<decltype(data), false, false>(LoadData, address, &data);
+                memoryAccess<decltype(data), false, true>(LoadData, address, &data);
                 writeRegXU(instruction.reg[0], data);
             }
 
@@ -632,7 +637,7 @@ class Cpu {
 
             std::lock_guard<std::recursive_mutex> lock(ram.sealsMutex);
             if(unseal(address, sizeof(data))) {
-                memoryAccess<decltype(data), true, false>(StoreData, address, &data);
+                memoryAccess<decltype(data), true, true>(StoreData, address, &data);
                 writeRegXU(instruction.reg[0], 0);
             }else
                 writeRegXU(instruction.reg[0], 1);
