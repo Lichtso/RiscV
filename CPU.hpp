@@ -62,7 +62,58 @@ class Cpu {
         Float64 F64;
         FloatType F;
     } regF[32];
-    std::map<UInt16, UIntType> csr;
+    struct {
+        UInt8 fflags;
+        UIntType frm;
+        UIntType fcsr;
+        UIntType sstatus;
+        UIntType stvec;
+        UIntType sie;
+        UIntType stimecmp;
+        UIntType sscratch;
+        UIntType sepc;
+        UIntType scause;
+        UIntType sbadaddr;
+        UIntType sip;
+        UIntType sptbr;
+        UIntType sasid;
+        UInt64 cycle;
+        UInt64 time;
+        UInt64 instret;
+        UIntType hstatus;
+        UIntType htvec;
+        UIntType htdeleg;
+        UIntType htimecmp;
+        UIntType hscratch;
+        UIntType hepc;
+        UIntType hcause;
+        UIntType hbadaddr;
+        UIntType tbd;
+        UInt64 stime;
+        UIntType mcpuid;
+        UIntType mimpid;
+        UIntType mhartid;
+        UIntType mstatus;
+        UIntType mtvec;
+        UIntType mtdeleg;
+        UIntType mie;
+        UIntType mtimecmp;
+        UInt64 mtime;
+        UIntType mscratch;
+        UIntType mepc;
+        UIntType mcause;
+        UIntType mbadaddr;
+        UIntType mip;
+        UIntType mbase;
+        UIntType mbound;
+        UIntType mibase;
+        UIntType mibound;
+        UIntType mdbase;
+        UIntType mdbound;
+        UInt64 htime;
+        UIntType mtohost;
+        UIntType mfromhost;
+    } csr;
     std::set<std::pair<AddressType, UInt8>> seals;
 
     constexpr UInt8 getLevels() {
@@ -76,78 +127,57 @@ class Cpu {
         memset(regX, 0, sizeof(regX));
         memset(regF, 0, sizeof(regF));
 
-        csr[csr_fflags] = 0; // TODO
-        csr[csr_frm] = 0; // TODO
-        csr[csr_fcsr] = 0; // TODO
-        csr[csr_cycle] = 0; // TODO
-        csr[csr_time] = 0; // TODO
-        csr[csr_instret] = 0; // TODO
-        csr[csr_cycleh] = 0; // TODO
-        csr[csr_timeh] = 0; // TODO
-        csr[csr_instreth] = 0; // TODO
-        csr[csr_sstatus] = 0; // TODO
-        csr[csr_stvec] = 0; // TODO
-        csr[csr_sie] = 0; // TODO
-        csr[csr_stimecmp] = 0; // TODO
-        csr[csr_stime] = 0; // TODO
-        csr[csr_stimeh] = 0; // TODO
-        csr[csr_sscratch] = 0; // TODO
-        csr[csr_sepc] = 0; // TODO
-        csr[csr_scause] = 0; // TODO
-        csr[csr_sbadaddr] = 0; // TODO
-        csr[csr_sip] = 0; // TODO
-        csr[csr_sptbr] = 0; // TODO
-        csr[csr_sasid] = 0; // TODO
-        csr[csr_cyclew] = 0; // TODO
-        csr[csr_timew] = 0; // TODO
-        csr[csr_instretw] = 0; // TODO
-        csr[csr_cyclehw] = 0; // TODO
-        csr[csr_timehw] = 0; // TODO
-        csr[csr_instrethw] = 0; // TODO
-        csr[csr_hstatus] = 0; // TODO
-        csr[csr_htvec] = 0; // TODO
-        csr[csr_htdeleg] = 0; // TODO
-        csr[csr_htimecmp] = 0; // TODO
-        csr[csr_htime] = 0; // TODO
-        csr[csr_htimeh] = 0; // TODO
-        csr[csr_hscratch] = 0; // TODO
-        csr[csr_hepc] = 0; // TODO
-        csr[csr_hcause] = 0; // TODO
-        csr[csr_hbadaddr] = 0; // TODO
-        csr[csr_tbd] = 0; // TODO
-        csr[csr_stimew] = 0; // TODO
-        csr[csr_stimehw] = 0; // TODO
+        // TODO
+        csr.fflags = 0;
+        csr.frm = 0;
+        csr.fcsr = 0;
+        csr.sstatus = 0;
+        csr.stvec = 0;
+        csr.sie = 0;
+        csr.stimecmp = 0;
+        csr.sscratch = 0;
+        csr.sepc = 0;
+        csr.scause = 0;
+        csr.sbadaddr = 0;
+        csr.sip = 0;
+        csr.sptbr = 0;
+        csr.sasid = 0;
+        csr.hstatus = 0;
+        csr.htvec = 0;
+        csr.htdeleg = 0;
+        csr.htimecmp = 0;
+        csr.hscratch = 0;
+        csr.hepc = 0;
+        csr.hcause = 0;
+        csr.hbadaddr = 0;
+        csr.tbd = 0;
 
         {
-            UIntType mstatus = 6;
+            csr.mstatus = 6;
             for(UInt8 l = 1; l < getLevels(); ++l)
-                mstatus |= 1<<(l*3);
+                csr.mstatus |= 1<<(l*3);
             // TODO XS, VM, SD
-            csr[csr_mstatus] = mstatus;
         }
-        csr[csr_mtvec] = 0x100;
-        pc = csr[csr_mtvec]+0x100;
+        csr.mtvec = 0x100;
+        pc = csr.mtvec+0x100;
 
-        csr[csr_mtdeleg] = 0; // TODO
-        csr[csr_mie] = 0; // TODO
-        csr[csr_mtimecmp] = 0; // TODO
-        csr[csr_mtime] = 0; // TODO
-        csr[csr_mtimeh] = 0; // TODO
-        csr[csr_mscratch] = 0; // TODO
-        csr[csr_mepc] = 0; // TODO
-        csr[csr_mcause] = 0; // TODO
-        csr[csr_mbadaddr] = 0; // TODO
-        csr[csr_mip] = 0; // TODO
-        csr[csr_mbase] = 0; // TODO
-        csr[csr_mbound] = 0; // TODO
-        csr[csr_mibase] = 0; // TODO
-        csr[csr_mibound] = 0; // TODO
-        csr[csr_mdbase] = 0; // TODO
-        csr[csr_mdbound] = 0; // TODO
-        csr[csr_htimew] = 0; // TODO
-        csr[csr_htimehw] = 0; // TODO
-        csr[csr_mtohost] = 0; // TODO
-        csr[csr_mfromhost] = 0; // TODO
+        csr.mtdeleg = 0;
+        csr.mie = 0;
+        csr.mtimecmp = 0;
+        csr.mtime = 0;
+        csr.mscratch = 0;
+        csr.mepc = 0;
+        csr.mcause = 0;
+        csr.mbadaddr = 0;
+        csr.mip = 0;
+        csr.mbase = 0;
+        csr.mbound = 0;
+        csr.mibase = 0;
+        csr.mibound = 0;
+        csr.mdbase = 0;
+        csr.mdbound = 0;
+        csr.mtohost = 0;
+        csr.mfromhost = 0;
     }
 
     Cpu(UIntType index = 0) {
@@ -168,9 +198,9 @@ class Cpu {
         mcpuid <<= (XLEN-2);
         setBitsIn(mcpuid, static_cast<UIntType>(XLEN), 26, XLEN-28);
         setBitsIn(mcpuid, static_cast<UIntType>(EXT), 0, 26);
-        csr[csr_mcpuid] = mcpuid;
-        csr[csr_mimpid] = 0; // TODO
-        csr[csr_mhartid] = index;
+        csr.mcpuid = mcpuid;
+        csr.mimpid = 0; // TODO
+        csr.mhartid = index;
     }
 
     void dump(std::ostream& out) {
@@ -192,7 +222,163 @@ class Cpu {
     }
 
     UIntType readCSR(UInt16 index) {
-        return csr[index];
+        // TODO : Check priviledge mode
+        switch(index) {
+            case csr_fflags:
+                return csr.fflags;
+            case csr_frm:
+                return csr.frm;
+            case csr_fcsr:
+                return csr.fcsr;
+            case csr_cycle:
+            case csr_cyclew:
+                return getBitsFrom(csr.cycle, 0, XLEN);
+            case csr_time:
+                return getBitsFrom(csr.time, 0, XLEN);
+            case csr_instret:
+                return getBitsFrom(csr.instret, 0, XLEN);
+            case csr_cycleh:
+                if(XLEN > 32)
+                    throw Exception(Exception::Code::IllegalInstruction);
+                return getBitsFrom(csr.cycle, 32, XLEN);
+            case csr_timeh:
+                if(XLEN > 32)
+                    throw Exception(Exception::Code::IllegalInstruction);
+                return getBitsFrom(csr.time, 32, XLEN);
+            case csr_instreth:
+                if(XLEN > 32)
+                    throw Exception(Exception::Code::IllegalInstruction);
+                return getBitsFrom(csr.instret, 32, XLEN);
+            case csr_sstatus:
+                return csr.sstatus;
+            case csr_stvec:
+                return csr.stvec;
+            case csr_sie:
+                return csr.sie;
+            case csr_stimecmp:
+                return csr.stimecmp;
+            case csr_stime:
+                return getBitsFrom(csr.stime, 0, XLEN);
+            case csr_stimeh:
+                if(XLEN > 32)
+                    throw Exception(Exception::Code::IllegalInstruction);
+                return getBitsFrom(csr.stime, 32, XLEN);
+            case csr_sscratch:
+                return csr.sscratch;
+            case csr_sepc:
+                return csr.sepc;
+            case csr_scause:
+                return csr.scause;
+            case csr_sbadaddr:
+                return csr.sbadaddr;
+            case csr_sip:
+                return csr.sip;
+            case csr_sptbr:
+                return csr.sptbr;
+            case csr_sasid:
+                return csr.sasid;
+            case csr_timew:
+                return getBitsFrom(csr.time, 0, XLEN);
+            case csr_instretw:
+                return getBitsFrom(csr.instret, 0, XLEN);
+            case csr_cyclehw:
+                if(XLEN > 32)
+                    throw Exception(Exception::Code::IllegalInstruction);
+                return getBitsFrom(csr.cycle, 32, XLEN);
+            case csr_timehw:
+                if(XLEN > 32)
+                    throw Exception(Exception::Code::IllegalInstruction);
+                return getBitsFrom(csr.time, 32, XLEN);
+            case csr_instrethw:
+                if(XLEN > 32)
+                    throw Exception(Exception::Code::IllegalInstruction);
+                return getBitsFrom(csr.instret, 32, XLEN);
+            case csr_hstatus:
+                return csr.hstatus;
+            case csr_htvec:
+                return csr.htvec;
+            case csr_htdeleg:
+                return csr.htdeleg;
+            case csr_htimecmp:
+                return csr.htimecmp;
+            case csr_htime:
+                return getBitsFrom(csr.htime, 0, XLEN);
+            case csr_htimeh:
+                if(XLEN > 32)
+                    throw Exception(Exception::Code::IllegalInstruction);
+                return getBitsFrom(csr.htime, 32, XLEN);
+            case csr_hscratch:
+                return csr.hscratch;
+            case csr_hepc:
+                return csr.hepc;
+            case csr_hcause:
+                return csr.hcause;
+            case csr_hbadaddr:
+                return csr.hbadaddr;
+            case csr_tbd:
+                return csr.tbd;
+            case csr_stimew:
+                return getBitsFrom(csr.stime, 0, XLEN);
+            case csr_stimehw:
+                if(XLEN > 32)
+                    throw Exception(Exception::Code::IllegalInstruction);
+                return getBitsFrom(csr.stime, 32, XLEN);
+            case csr_mcpuid:
+                return csr.mcpuid;
+            case csr_mimpid:
+                return csr.mimpid;
+            case csr_mhartid:
+                return csr.mhartid;
+            case csr_mstatus:
+                return csr.mstatus;
+            case csr_mtvec:
+                return csr.mtvec;
+            case csr_mtdeleg:
+                return csr.mtdeleg;
+            case csr_mie:
+                return csr.mie;
+            case csr_mtimecmp:
+                return csr.mtimecmp;
+            case csr_mtime:
+                return getBitsFrom(csr.mtime, 0, XLEN);
+            case csr_mtimeh:
+                if(XLEN > 32)
+                    throw Exception(Exception::Code::IllegalInstruction);
+                return getBitsFrom(csr.mtime, 32, XLEN);
+            case csr_mscratch:
+                return csr.mscratch;
+            case csr_mepc:
+                return csr.mepc;
+            case csr_mcause:
+                return csr.mcause;
+            case csr_mbadaddr:
+                return csr.mbadaddr;
+            case csr_mip:
+                return csr.mip;
+            case csr_mbase:
+                return csr.mbase;
+            case csr_mbound:
+                return csr.mbound;
+            case csr_mibase:
+                return csr.mibase;
+            case csr_mibound:
+                return csr.mibound;
+            case csr_mdbase:
+                return csr.mdbase;
+            case csr_mdbound:
+                return csr.mdbound;
+            case csr_htimew:
+                return getBitsFrom(csr.htime, 0, XLEN);
+            case csr_htimehw:
+                if(XLEN > 32)
+                    throw Exception(Exception::Code::IllegalInstruction);
+                return getBitsFrom(csr.htime, 32, XLEN);
+            case csr_mtohost:
+                return csr.mtohost;
+            case csr_mfromhost:
+                return csr.mfromhost;
+        }
+        throw Exception(Exception::Code::IllegalInstruction);
     }
 
     void writeRegXU(UInt8 index, UIntType value) {
@@ -204,7 +390,203 @@ class Cpu {
     }
 
     void writeCSR(UInt16 index, UIntType value) {
-        csr[index] = value;
+        // TODO : Check priviledge mode
+        switch(index) {
+            case csr_fflags:
+                csr.fflags = value;
+            break;
+            case csr_frm:
+                csr.frm = value;
+            break;
+            case csr_fcsr:
+                csr.fcsr = value;
+            break;
+            case csr_cycle:
+            case csr_time:
+            case csr_instret:
+            case csr_cycleh:
+            case csr_timeh:
+            case csr_instreth:
+                throw Exception(Exception::Code::IllegalInstruction);
+            case csr_sstatus:
+                csr.sstatus = value;
+            break;
+            case csr_stvec:
+                csr.stvec = value;
+            break;
+            case csr_sie:
+                csr.sie = value;
+            break;
+            case csr_stimecmp:
+                csr.stimecmp = value;
+            break;
+            case csr_stime:
+            case csr_stimeh:
+                throw Exception(Exception::Code::IllegalInstruction);
+            case csr_sscratch:
+                csr.sscratch = value;
+            break;
+            case csr_sepc:
+                csr.sepc = value;
+            break;
+            case csr_scause:
+                csr.scause = value;
+            break;
+            case csr_sbadaddr:
+                csr.sbadaddr = value;
+            break;
+            case csr_sip:
+                csr.sip = value;
+            break;
+            case csr_sptbr:
+                csr.sptbr = value;
+            break;
+            case csr_sasid:
+                csr.sasid = value;
+            break;
+            case csr_cyclew:
+                setBitsIn(csr.cycle, value, 0, XLEN);
+            break;
+            case csr_timew:
+                setBitsIn(csr.time, value, 0, XLEN);
+            break;
+            case csr_instretw:
+                setBitsIn(csr.instret, value, 0, XLEN);
+            break;
+            case csr_cyclehw:
+                if(XLEN > 32)
+                    throw Exception(Exception::Code::IllegalInstruction);
+                setBitsIn(csr.cycle, value, 32, 32);
+            break;
+            case csr_timehw:
+                if(XLEN > 32)
+                    throw Exception(Exception::Code::IllegalInstruction);
+                setBitsIn(csr.time, value, 32, 32);
+            break;
+            case csr_instrethw:
+                if(XLEN > 32)
+                    throw Exception(Exception::Code::IllegalInstruction);
+                setBitsIn(csr.instret, value, 32, 32);
+            break;
+            case csr_hstatus:
+                csr.hstatus = value;
+            break;
+            case csr_htvec:
+                csr.htvec = value;
+            break;
+            case csr_htdeleg:
+                csr.htdeleg = value;
+            break;
+            case csr_htimecmp:
+                csr.htimecmp = value;
+            break;
+            case csr_htime:
+            case csr_htimeh:
+                throw Exception(Exception::Code::IllegalInstruction);
+            case csr_hscratch:
+                csr.hscratch = value;
+            break;
+            case csr_hepc:
+                csr.hepc = value;
+            break;
+            case csr_hcause:
+                csr.hcause = value;
+            break;
+            case csr_hbadaddr:
+                csr.hbadaddr = value;
+            break;
+            case csr_tbd:
+                csr.tbd = value;
+            break;
+            case csr_stimew:
+                setBitsIn(csr.stime, value, 0, XLEN);
+            break;
+            case csr_stimehw:
+                if(XLEN > 32)
+                    throw Exception(Exception::Code::IllegalInstruction);
+                setBitsIn(csr.stime, value, 32, 32);
+            break;
+            case csr_mcpuid:
+                csr.mcpuid = value;
+            break;
+            case csr_mimpid:
+                csr.mimpid = value;
+            break;
+            case csr_mhartid:
+                csr.mhartid = value;
+            break;
+            case csr_mstatus:
+                csr.mstatus = value;
+            break;
+            case csr_mtvec:
+                csr.mtvec = value;
+            break;
+            case csr_mtdeleg:
+                csr.mtdeleg = value;
+            break;
+            case csr_mie:
+                csr.mie = value;
+            break;
+            case csr_mtimecmp:
+                csr.mtimecmp = value;
+            break;
+            case csr_mtime:
+                setBitsIn(csr.mtime, value, 0, XLEN);
+            break;
+            case csr_mtimeh:
+                if(XLEN > 32)
+                    throw Exception(Exception::Code::IllegalInstruction);
+                setBitsIn(csr.mtime, value, 32, 32);
+            break;
+            case csr_mscratch:
+                csr.mscratch = value;
+            break;
+            case csr_mepc:
+                csr.mepc = value;
+            break;
+            case csr_mcause:
+                csr.mcause = value;
+            break;
+            case csr_mbadaddr:
+                csr.mbadaddr = value;
+            break;
+            case csr_mip:
+                csr.mip = value;
+            break;
+            case csr_mbase:
+                csr.mbase = value;
+            break;
+            case csr_mbound:
+                csr.mbound = value;
+            break;
+            case csr_mibase:
+                csr.mibase = value;
+            break;
+            case csr_mibound:
+                csr.mibound = value;
+            break;
+            case csr_mdbase:
+                csr.mdbase = value;
+            break;
+            case csr_mdbound:
+                csr.mdbound = value;
+            break;
+            case csr_htimew:
+                setBitsIn(csr.htime, value, 0, XLEN);
+            break;
+            case csr_htimehw:
+                if(XLEN > 32)
+                    throw Exception(Exception::Code::IllegalInstruction);
+                setBitsIn(csr.htime, value, 32, 32);
+            break;
+            case csr_mtohost:
+                csr.mtohost = value;
+            break;
+            case csr_mfromhost:
+                csr.mfromhost = value;
+            break;
+        }
+        throw Exception(Exception::Code::IllegalInstruction);
     }
 
     void seal(UIntType address, UInt8 length) {
@@ -233,7 +615,7 @@ class Cpu {
     template<typename PteType, UInt8 MaxLen, UInt8 MinLen, UInt8 MaxLevel>
     AddressType translatePaged(PrivilegeMode mode, MemoryAccessType mat, UIntType src) {
         UInt8 type, i = MaxLevel, offsetLen = 12;
-        AddressType dst = csr[csr_sptbr];
+        AddressType dst = csr.sptbr;
         PteType pte;
 
         // TODO: csr_sasid
@@ -296,21 +678,20 @@ class Cpu {
     }
 
     AddressType translate(MemoryAccessType mat, UIntType src) {
-        UIntType mstatus = csr[csr_mstatus];
-        bool mPrv = getBitsFrom(mstatus, 16, 1);
-        PrivilegeMode mode = (PrivilegeMode)getBitsFrom(mstatus, 1, 2);
+        bool mPrv = getBitsFrom(csr.mstatus, 16, 1);
+        PrivilegeMode mode = (PrivilegeMode)getBitsFrom(csr.mstatus, 1, 2);
         if(mode != Machine || mat != FetchInstruction || mPrv)
-            mode = (PrivilegeMode)getBitsFrom(mstatus, 4, 2);
+            mode = (PrivilegeMode)getBitsFrom(csr.mstatus, 4, 2);
 
         AddressType dst;
-        switch(getBitsFrom(mstatus, 17, 5)) {
+        switch(getBitsFrom(csr.mstatus, 17, 5)) {
             case 0: // Mbare
                 dst = src;
             break;
             case 1: // Mbb
-                if(src >= csr[csr_mbound])
+                if(src >= csr.mbound)
                     throw MemoryAccessException((Exception::Code)(mat+1), src);
-                dst = src+csr[csr_mbase];
+                dst = src+csr.mbase;
             break;
             case 2: { // Mbbid
                 UIntType halfVAS = 1ULL<<(XLEN-1);
@@ -318,13 +699,13 @@ class Cpu {
                     if(src < halfVAS)
                         throw MemoryAccessException((Exception::Code)(mat+1), src);
                     src -= halfVAS;
-                    if(src >= csr[csr_mibound])
+                    if(src >= csr.mibound)
                         throw MemoryAccessException((Exception::Code)(mat+1), src);
-                    dst = src+csr[csr_mibase];
+                    dst = src+csr.mibase;
                 }else{
-                    if(src >= halfVAS || src >= csr[csr_mdbound])
+                    if(src >= halfVAS || src >= csr.mdbound)
                         throw MemoryAccessException((Exception::Code)(mat+1), src);
-                    dst = src+csr[csr_mdbase];
+                    dst = src+csr.mdbase;
                 }
             } break;
             case 8: // Sv32
@@ -780,24 +1161,23 @@ class Cpu {
     #define FloatInstructionAux \
         if(!(EXT&F_Float)) \
             throw Exception(Exception::Code::IllegalInstruction); \
-        /*UInt8& status = csr[csr_fflags]; TODO*/ UInt8 status = 0; \
         FloatRoundingMode round = static_cast<FloatRoundingMode>(instruction.funct[1]); \
         if(round == RoundDynamic) \
-            round = static_cast<FloatRoundingMode>((status>>5)&TrailingBitMask<UInt8>(3));
+            round = static_cast<FloatRoundingMode>((csr.fflags>>5)&TrailingBitMask<UInt8>(3));
 
     void executeOpcode43(const Instruction& instruction) {
         FloatInstructionAux
 
         switch(instruction.funct[0]) {
             case 0: // FMADD.S rd,rs1,rs2,rs3 (F)
-                regF[instruction.reg[0]].F32.product(status, round, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
-                regF[instruction.reg[0]].F32.template sum<false>(status, round, regF[instruction.reg[0]].F32, regF[instruction.reg[3]].F32);
+                regF[instruction.reg[0]].F32.product(csr.fflags, round, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
+                regF[instruction.reg[0]].F32.template sum<false>(csr.fflags, round, regF[instruction.reg[0]].F32, regF[instruction.reg[3]].F32);
             break;
             case 1: // FMADD.D rd,rs1,rs2,rs3 (F, D)
                 if(!(EXT&D_DoubleFloat))
                     throw Exception(Exception::Code::IllegalInstruction);
-                regF[instruction.reg[0]].F64.product(status, round, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
-                regF[instruction.reg[0]].F64.template sum<false>(status, round, regF[instruction.reg[0]].F64, regF[instruction.reg[3]].F64);
+                regF[instruction.reg[0]].F64.product(csr.fflags, round, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
+                regF[instruction.reg[0]].F64.template sum<false>(csr.fflags, round, regF[instruction.reg[0]].F64, regF[instruction.reg[3]].F64);
             break;
         }
     }
@@ -807,14 +1187,14 @@ class Cpu {
 
         switch(instruction.funct[0]) {
             case 0: // FMSUB.S rd,rs1,rs2,rs3 (F)
-                regF[instruction.reg[0]].F32.product(status, round, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
-                regF[instruction.reg[0]].F32.template sum<true>(status, round, regF[instruction.reg[0]].F32, regF[instruction.reg[3]].F32);
+                regF[instruction.reg[0]].F32.product(csr.fflags, round, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
+                regF[instruction.reg[0]].F32.template sum<true>(csr.fflags, round, regF[instruction.reg[0]].F32, regF[instruction.reg[3]].F32);
             break;
             case 1: // FMSUB.D rd,rs1,rs2,rs3 (F, D)
                 if(!(EXT&D_DoubleFloat))
                     throw Exception(Exception::Code::IllegalInstruction);
-                regF[instruction.reg[0]].F64.product(status, round, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
-                regF[instruction.reg[0]].F64.template sum<true>(status, round, regF[instruction.reg[0]].F64, regF[instruction.reg[3]].F64);
+                regF[instruction.reg[0]].F64.product(csr.fflags, round, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
+                regF[instruction.reg[0]].F64.template sum<true>(csr.fflags, round, regF[instruction.reg[0]].F64, regF[instruction.reg[3]].F64);
             break;
         }
     }
@@ -824,15 +1204,15 @@ class Cpu {
 
         switch(instruction.funct[0]) {
             case 0: // FNMSUB.S rd,rs1,rs2,rs3 (F)
-                regF[instruction.reg[0]].F32.product(status, round, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
-                regF[instruction.reg[0]].F32.template sum<true>(status, round, regF[instruction.reg[0]].F32, regF[instruction.reg[3]].F32);
+                regF[instruction.reg[0]].F32.product(csr.fflags, round, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
+                regF[instruction.reg[0]].F32.template sum<true>(csr.fflags, round, regF[instruction.reg[0]].F32, regF[instruction.reg[3]].F32);
                 regF[instruction.reg[0]].F32.negate();
             break;
             case 1: // FNMSUB.D rd,rs1,rs2,rs3 (F, D)
                 if(!(EXT&D_DoubleFloat))
                     throw Exception(Exception::Code::IllegalInstruction);
-                regF[instruction.reg[0]].F64.product(status, round, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
-                regF[instruction.reg[0]].F64.template sum<true>(status, round, regF[instruction.reg[0]].F64, regF[instruction.reg[3]].F64);
+                regF[instruction.reg[0]].F64.product(csr.fflags, round, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
+                regF[instruction.reg[0]].F64.template sum<true>(csr.fflags, round, regF[instruction.reg[0]].F64, regF[instruction.reg[3]].F64);
                 regF[instruction.reg[0]].F64.negate();
             break;
         }
@@ -843,15 +1223,15 @@ class Cpu {
 
         switch(instruction.funct[0]) {
             case 0: // FNMADD.S rd,rs1,rs2,rs3 (F)
-                regF[instruction.reg[0]].F32.product(status, round, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
-                regF[instruction.reg[0]].F32.template sum<false>(status, round, regF[instruction.reg[0]].F32, regF[instruction.reg[3]].F32);
+                regF[instruction.reg[0]].F32.product(csr.fflags, round, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
+                regF[instruction.reg[0]].F32.template sum<false>(csr.fflags, round, regF[instruction.reg[0]].F32, regF[instruction.reg[3]].F32);
                 regF[instruction.reg[0]].F32.negate();
             break;
             case 1: // FNMADD.D rd,rs1,rs2,rs3 (F, D)
                 if(!(EXT&D_DoubleFloat))
                     throw Exception(Exception::Code::IllegalInstruction);
-                regF[instruction.reg[0]].F64.product(status, round, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
-                regF[instruction.reg[0]].F64.template sum<false>(status, round, regF[instruction.reg[0]].F64, regF[instruction.reg[3]].F64);
+                regF[instruction.reg[0]].F64.product(csr.fflags, round, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
+                regF[instruction.reg[0]].F64.template sum<false>(csr.fflags, round, regF[instruction.reg[0]].F64, regF[instruction.reg[3]].F64);
                 regF[instruction.reg[0]].F64.negate();
             break;
         }
@@ -861,57 +1241,57 @@ class Cpu {
         FloatInstructionAux
 
         switch(instruction.funct[0]) {
-        	case 0x00: // FADD.S rd,rs1,rs2 (F)
-                regF[instruction.reg[0]].F32.template sum<false>(status, round, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
+            case 0x00: // FADD.S rd,rs1,rs2 (F)
+                regF[instruction.reg[0]].F32.template sum<false>(csr.fflags, round, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
             break;
             case 0x01: // FADD.D rd,rs1,rs2 (F, D)
                 if(!(EXT&D_DoubleFloat))
                     throw Exception(Exception::Code::IllegalInstruction);
-                regF[instruction.reg[0]].F64.template sum<false>(status, round, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
-        	break;
-        	case 0x04: // FSUB.S rd,rs1,rs2 (F)
-                regF[instruction.reg[0]].F32.template sum<true>(status, round, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
+                regF[instruction.reg[0]].F64.template sum<false>(csr.fflags, round, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
+            break;
+            case 0x04: // FSUB.S rd,rs1,rs2 (F)
+                regF[instruction.reg[0]].F32.template sum<true>(csr.fflags, round, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
             break;
             case 0x05: // FSUB.D rd,rs1,rs2 (F, D)
                 if(!(EXT&D_DoubleFloat))
                     throw Exception(Exception::Code::IllegalInstruction);
-                regF[instruction.reg[0]].F64.template sum<true>(status, round, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
-        	break;
-        	case 0x08: // FMUL.S rd,rs1,rs2 (F)
-                regF[instruction.reg[0]].F32.product(status, round, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
+                regF[instruction.reg[0]].F64.template sum<true>(csr.fflags, round, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
+            break;
+            case 0x08: // FMUL.S rd,rs1,rs2 (F)
+                regF[instruction.reg[0]].F32.product(csr.fflags, round, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
             break;
             case 0x09: // FMUL.D rd,rs1,rs2 (F, D)
                 if(!(EXT&D_DoubleFloat))
                     throw Exception(Exception::Code::IllegalInstruction);
-                regF[instruction.reg[0]].F64.product(status, round, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
-        	break;
-        	case 0x0C: // FDIV.S rd,rs1,rs2 (F)
-                regF[instruction.reg[0]].F32.quotient(status, round, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
+                regF[instruction.reg[0]].F64.product(csr.fflags, round, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
+            break;
+            case 0x0C: // FDIV.S rd,rs1,rs2 (F)
+                regF[instruction.reg[0]].F32.quotient(csr.fflags, round, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
             break;
             case 0x0D: // FDIV.D rd,rs1,rs2 (F, D)
                 if(!(EXT&D_DoubleFloat))
                     throw Exception(Exception::Code::IllegalInstruction);
-                regF[instruction.reg[0]].F64.quotient(status, round, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
-        	break;
+                regF[instruction.reg[0]].F64.quotient(csr.fflags, round, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
+            break;
             case 0x20: // FCVT.S.D rd,rs1 (F, D)
                 if(!(EXT&D_DoubleFloat))
                     throw Exception(Exception::Code::IllegalInstruction);
                 regF[instruction.reg[0]].F32.setFloat(regF[instruction.reg[0]].F64);
             break;
-        	case 0x21: // FCVT.D.S rd,rs1 (F, D)
+            case 0x21: // FCVT.D.S rd,rs1 (F, D)
                 if(!(EXT&D_DoubleFloat))
                     throw Exception(Exception::Code::IllegalInstruction);
                 regF[instruction.reg[0]].F64.setFloat(regF[instruction.reg[0]].F32);
             break;
-        	case 0x2C: // FSQRT.S rd,rs1 (F)
-                regF[instruction.reg[0]].F32.sqrt(status, round, regF[instruction.reg[1]].F32);
+            case 0x2C: // FSQRT.S rd,rs1 (F)
+                regF[instruction.reg[0]].F32.sqrt(csr.fflags, round, regF[instruction.reg[1]].F32);
             break;
             case 0x2D: // FSQRT.D rd,rs1 (F, D)
                 if(!(EXT&D_DoubleFloat))
                     throw Exception(Exception::Code::IllegalInstruction);
-                regF[instruction.reg[0]].F64.sqrt(status, round, regF[instruction.reg[1]].F64);
+                regF[instruction.reg[0]].F64.sqrt(csr.fflags, round, regF[instruction.reg[1]].F64);
             break;
-        	case 0x10:
+            case 0x10:
                 regF[instruction.reg[0]].F32 = regF[instruction.reg[1]].F32;
                 switch(instruction.funct[1]) {
                     case 0: // FSGNJ.S rd,rs1,rs2 (F)
@@ -942,15 +1322,15 @@ class Cpu {
                         regF[instruction.reg[2]].F64.getSign());
                     break;
                 }
-        	break;
-        	case 0x14:
+            break;
+            case 0x14:
                 switch(instruction.funct[1]) {
                     case 0: // FMIN.S rd,rs1,rs2 (F)
-                        regF[instruction.reg[0]].F32.template extremum<FloatComparison::Less>(status,
+                        regF[instruction.reg[0]].F32.template extremum<FloatComparison::Less>(csr.fflags,
                             regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
                     break;
                     case 1: // FMAX.S rd,rs1,rs2 (F)
-                        regF[instruction.reg[0]].F32.template extremum<FloatComparison::Greater>(status,
+                        regF[instruction.reg[0]].F32.template extremum<FloatComparison::Greater>(csr.fflags,
                             regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
                     break;
                 }
@@ -960,27 +1340,27 @@ class Cpu {
                     throw Exception(Exception::Code::IllegalInstruction);
                 switch(instruction.funct[1]) {
                     case 0: // FMIN.D rd,rs1,rs2 (F, D)
-                        regF[instruction.reg[0]].F64.template extremum<FloatComparison::Less>(status,
+                        regF[instruction.reg[0]].F64.template extremum<FloatComparison::Less>(csr.fflags,
                             regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
                     break;
                     case 1: // FMAX.D rd,rs1,rs2 (F, D)
-                        regF[instruction.reg[0]].F64.template extremum<FloatComparison::Greater>(status,
+                        regF[instruction.reg[0]].F64.template extremum<FloatComparison::Greater>(csr.fflags,
                             regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
                     break;
                 }
-        	break;
-        	case 0x50:
+            break;
+            case 0x50:
                 switch(instruction.funct[1]) {
                     case 0: { // FLE.S rd,rs1,rs2 (F)
-                        auto cmp = Float32::compare<true>(status, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
+                        auto cmp = Float32::compare<true>(csr.fflags, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
                         writeRegXU(instruction.reg[0], (cmp == FloatComparison::Less) ? 1 : 0);
                     } break;
                     case 1: { // FLT.S rd,rs1,rs2 (F)
-                        auto cmp = Float32::compare<true>(status, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
+                        auto cmp = Float32::compare<true>(csr.fflags, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
                         writeRegXU(instruction.reg[0], (cmp == FloatComparison::Less || cmp == FloatComparison::Equal) ? 1 : 0);
                     } break;
                     case 2: { // FEQ.S rd,rs1,rs2 (F)
-                        auto cmp = Float32::compare<false>(status, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
+                        auto cmp = Float32::compare<false>(csr.fflags, regF[instruction.reg[1]].F32, regF[instruction.reg[2]].F32);
                         writeRegXU(instruction.reg[0], (cmp == FloatComparison::Equal) ? 1 : 0);
                     } break;
                 }
@@ -990,34 +1370,34 @@ class Cpu {
                     throw Exception(Exception::Code::IllegalInstruction);
                 switch(instruction.funct[1]) {
                     case 0: { // FLE.D rd,rs1,rs2 (F, D)
-                        auto cmp = Float64::compare<true>(status, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
+                        auto cmp = Float64::compare<true>(csr.fflags, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
                         writeRegXU(instruction.reg[0], (cmp == FloatComparison::Less) ? 1 : 0);
                     } break;
                     case 1: { // FLT.D rd,rs1,rs2 (F, D)
-                        auto cmp = Float64::compare<true>(status, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
+                        auto cmp = Float64::compare<true>(csr.fflags, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
                         writeRegXU(instruction.reg[0], (cmp == FloatComparison::Less || cmp == FloatComparison::Equal) ? 1 : 0);
                     } break;
                     case 2: { // FEQ.D rd,rs1,rs2 (F, D)
-                        auto cmp = Float64::compare<false>(status, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
+                        auto cmp = Float64::compare<false>(csr.fflags, regF[instruction.reg[1]].F64, regF[instruction.reg[2]].F64);
                         writeRegXU(instruction.reg[0], (cmp == FloatComparison::Equal) ? 1 : 0);
                     } break;
                 }
-        	break;
-        	case 0x60:
+            break;
+            case 0x60:
                 if(instruction.reg[2] >= 2 && XLEN < 64)
                     throw Exception(Exception::Code::IllegalInstruction);
                 switch(instruction.reg[2]) {
                     case 0: // FCVT.W.S rd,rs1 (F)
-                        writeRegXI(instruction.reg[0], regF[instruction.reg[1]].F32.template getInt<Int32>(status));
+                        writeRegXI(instruction.reg[0], regF[instruction.reg[1]].F32.template getInt<Int32>(csr.fflags));
                     break;
                     case 1: // FCVT.WU.S rd,rs1 (F)
-                        writeRegXU(instruction.reg[0], regF[instruction.reg[1]].F32.template getInt<UInt32>(status));
+                        writeRegXU(instruction.reg[0], regF[instruction.reg[1]].F32.template getInt<UInt32>(csr.fflags));
                     break;
                     case 2: // FCVT.L.S rd,rs1 (F, 64)
-                        writeRegXI(instruction.reg[0], regF[instruction.reg[1]].F32.template getInt<Int64>(status));
+                        writeRegXI(instruction.reg[0], regF[instruction.reg[1]].F32.template getInt<Int64>(csr.fflags));
                     break;
                     case 3: // FCVT.LU.S rd,rs1 (F, 64)
-                        writeRegXU(instruction.reg[0], regF[instruction.reg[1]].F32.template getInt<UInt64>(status));
+                        writeRegXU(instruction.reg[0], regF[instruction.reg[1]].F32.template getInt<UInt64>(csr.fflags));
                     break;
                 }
             break;
@@ -1026,16 +1406,16 @@ class Cpu {
                     throw Exception(Exception::Code::IllegalInstruction);
                 switch(instruction.reg[2]) {
                     case 0: // FCVT.W.D rd,rs1 (F, D)
-                        writeRegXI(instruction.reg[0], regF[instruction.reg[1]].F64.template getInt<Int32>(status));
+                        writeRegXI(instruction.reg[0], regF[instruction.reg[1]].F64.template getInt<Int32>(csr.fflags));
                     break;
                     case 1: // FCVT.WU.D rd,rs1 (F, D)
-                        writeRegXU(instruction.reg[0], regF[instruction.reg[1]].F64.template getInt<UInt32>(status));
+                        writeRegXU(instruction.reg[0], regF[instruction.reg[1]].F64.template getInt<UInt32>(csr.fflags));
                     break;
                     case 2: // FCVT.L.D rd,rs1 (F, D, 64)
-                        writeRegXI(instruction.reg[0], regF[instruction.reg[1]].F64.template getInt<Int64>(status));
+                        writeRegXI(instruction.reg[0], regF[instruction.reg[1]].F64.template getInt<Int64>(csr.fflags));
                     break;
                     case 3: // FCVT.LU.D rd,rs1 (F, D, 64)
-                        writeRegXU(instruction.reg[0], regF[instruction.reg[1]].F64.template getInt<UInt64>(status));
+                        writeRegXU(instruction.reg[0], regF[instruction.reg[1]].F64.template getInt<UInt64>(csr.fflags));
                     break;
                 }
             break;
@@ -1044,38 +1424,38 @@ class Cpu {
                     throw Exception(Exception::Code::IllegalInstruction);
                 switch(instruction.reg[2]) {
                     case 0: // FCVT.S.W rd,rs1 (F)
-                        regF[instruction.reg[0]].F32.template setInt<Int32>(status, round, readRegXI(instruction.reg[1]));
+                        regF[instruction.reg[0]].F32.template setInt<Int32>(csr.fflags, round, readRegXI(instruction.reg[1]));
                     break;
                     case 1: // FCVT.S.WU rd,rs1 (F)
-                        regF[instruction.reg[0]].F32.template setUInt<UInt32>(status, round, readRegXU(instruction.reg[1]));
+                        regF[instruction.reg[0]].F32.template setUInt<UInt32>(csr.fflags, round, readRegXU(instruction.reg[1]));
                     break;
                     case 2: // FCVT.S.L rd,rs1 (F, 64)
-                        regF[instruction.reg[0]].F32.template setInt<Int64>(status, round, readRegXI(instruction.reg[1]));
+                        regF[instruction.reg[0]].F32.template setInt<Int64>(csr.fflags, round, readRegXI(instruction.reg[1]));
                     break;
                     case 3: // FCVT.S.LU rd,rs1 (F, 64)
-                        regF[instruction.reg[0]].F32.template setUInt<UInt64>(status, round, readRegXU(instruction.reg[1]));
+                        regF[instruction.reg[0]].F32.template setUInt<UInt64>(csr.fflags, round, readRegXU(instruction.reg[1]));
                     break;
                 }
             break;
-        	case 0x69:
+            case 0x69:
                 if(!(EXT&D_DoubleFloat) || (instruction.reg[2] >= 2 && XLEN < 64))
                     throw Exception(Exception::Code::IllegalInstruction);
                 switch(instruction.reg[2]) {
                     case 0: // FCVT.D.W rd,rs1 (F, D)
-                        regF[instruction.reg[0]].F64.template setInt<Int32>(status, round, readRegXI(instruction.reg[1]));
+                        regF[instruction.reg[0]].F64.template setInt<Int32>(csr.fflags, round, readRegXI(instruction.reg[1]));
                     break;
                     case 1: // FCVT.D.WU rd,rs1 (F, D)
-                        regF[instruction.reg[0]].F64.template setUInt<UInt32>(status, round, readRegXU(instruction.reg[1]));
+                        regF[instruction.reg[0]].F64.template setUInt<UInt32>(csr.fflags, round, readRegXU(instruction.reg[1]));
                     break;
                     case 2: // FCVT.D.L rd,rs1 (F, D, 64)
-                        regF[instruction.reg[0]].F64.template setInt<Int64>(status, round, readRegXI(instruction.reg[1]));
+                        regF[instruction.reg[0]].F64.template setInt<Int64>(csr.fflags, round, readRegXI(instruction.reg[1]));
                     break;
                     case 3: // FCVT.D.LU rd,rs1 (F, D, 64)
-                        regF[instruction.reg[0]].F64.template setUInt<UInt64>(status, round, readRegXU(instruction.reg[1]));
+                        regF[instruction.reg[0]].F64.template setUInt<UInt64>(csr.fflags, round, readRegXU(instruction.reg[1]));
                     break;
                 }
             break;
-        	case 0x70:
+            case 0x70:
                 switch(instruction.funct[1]) {
                     case 0: // FMV.X.S rd,rs1 (F)
                         writeRegXI(instruction.reg[0], static_cast<Int32>(regF[instruction.reg[1]].F32.raw));
@@ -1097,16 +1477,16 @@ class Cpu {
                     break;
                 }
             break;
-        	case 0x78: // FMV.S.X rd,rs1 (F)
+            case 0x78: // FMV.S.X rd,rs1 (F)
                 regF[instruction.reg[0]].F32.raw = readRegXU(instruction.reg[1]);
             break;
             case 0x79: // FMV.D.X rd,rs1 (F, D, 64)
                 if(!(EXT&D_DoubleFloat) || XLEN < 64)
                     throw Exception(Exception::Code::IllegalInstruction);
                 regF[instruction.reg[0]].F64.raw = readRegXU(instruction.reg[1]);
-        	break;
-        	default:
-        	   throw Exception(Exception::Code::IllegalInstruction);
+            break;
+            default:
+               throw Exception(Exception::Code::IllegalInstruction);
         }
     }
 
@@ -1157,32 +1537,33 @@ class Cpu {
     void executeOpcode73(const Instruction& instruction, UIntType pcNextValue) {
         switch(instruction.funct[0]) {
             case 0: {
-                UIntType mstatus = csr[csr_mstatus];
-                PrivilegeMode cpm = (PrivilegeMode)getBitsFrom(mstatus, 1, 2);
+                PrivilegeMode cpm = (PrivilegeMode)getBitsFrom(csr.mstatus, 1, 2);
                 switch(static_cast<UInt32>(instruction.imm)) {
                     case 0x0000: { // ECALL
                         pc = pcNextValue; // TODO : Find out how pc behaves
+                        ++csr.instret;
                         throw Exception((Exception::Code)(Exception::Code::EnvironmentCallFromU+cpm));
                     }
                     case 0x0001: // EBREAK
+                        ++csr.instret;
                         throw Exception(Exception::Code::Breakpoint);
                     case 0x0100: { // ERET
                         switch(cpm) {
                             case User:
                                 throw Exception(Exception::Code::IllegalInstruction);
                             case Supervisor:
-                                pc = csr[csr_sepc];
+                                pc = csr.sepc;
                             break;
                             case Hypervisor:
-                                pc = csr[csr_hepc];
+                                pc = csr.hepc;
                             break;
                             case Machine:
-                                pc = csr[csr_mepc];
+                                pc = csr.mepc;
                             break;
                         }
-                        setBitsIn(mstatus, static_cast<UIntType>((mstatus&TrailingBitMask<UIntType>(12))>>3), 0, 12);
-                        setBitsIn(mstatus, static_cast<UIntType>((EXT&U_UserMode)?1:7), (getLevels()-1)*3, 3);
-                        csr[csr_mstatus] = mstatus;
+                        setBitsIn(csr.mstatus, static_cast<UIntType>((csr.mstatus&TrailingBitMask<UIntType>(12))>>3), 0, 12);
+                        setBitsIn(csr.mstatus, static_cast<UIntType>((EXT&U_UserMode)?1:7), (getLevels()-1)*3, 3);
+                        ++csr.instret;
                     } return;
                     case 0x0101: // SFENCE.VM rs1
                         // TODO : Flush caches
@@ -1193,32 +1574,34 @@ class Cpu {
                     case 0x0205: // HRTS
                         if(cpm != Hypervisor)
                             throw Exception(Exception::Code::IllegalInstruction);
-                        setBitsIn(mstatus, static_cast<UIntType>(Supervisor), 1, 2);
-                        csr[csr_mstatus] = mstatus;
-                        csr[csr_sepc] = csr[csr_hepc];
-                        csr[csr_scause] = csr[csr_hcause];
-                        csr[csr_sbadaddr] = csr[csr_hbadaddr];
-                        pc = csr[csr_stvec];
+                        setBitsIn(csr.mstatus, static_cast<UIntType>(Supervisor), 1, 2);
+                        csr.mstatus = csr.mstatus;
+                        csr.sepc = csr.hepc;
+                        csr.scause = csr.hcause;
+                        csr.sbadaddr = csr.hbadaddr;
+                        pc = csr.stvec;
+                        ++csr.instret;
                     return;
                     case 0x0305: // MRTS
                         if(cpm != Machine)
                             throw Exception(Exception::Code::IllegalInstruction);
-                        setBitsIn(mstatus, static_cast<UIntType>(Supervisor), 1, 2);
-                        csr[csr_mstatus] = mstatus;
-                        csr[csr_sepc] = csr[csr_mepc];
-                        csr[csr_scause] = csr[csr_mcause];
-                        csr[csr_sbadaddr] = csr[csr_mbadaddr];
-                        pc = csr[csr_stvec];
+                        setBitsIn(csr.mstatus, static_cast<UIntType>(Supervisor), 1, 2);
+                        csr.mstatus = csr.mstatus;
+                        csr.sepc = csr.mepc;
+                        csr.scause = csr.mcause;
+                        csr.sbadaddr = csr.mbadaddr;
+                        pc = csr.stvec;
+                        ++csr.instret;
                     return;
                     case 0x0306: // MRTH
                         if(cpm != Machine)
                             throw Exception(Exception::Code::IllegalInstruction);
-                        setBitsIn(mstatus, static_cast<UIntType>(Hypervisor), 1, 2);
-                        csr[csr_mstatus] = mstatus;
-                        csr[csr_hepc] = csr[csr_mepc];
-                        csr[csr_hcause] = csr[csr_mcause];
-                        csr[csr_hbadaddr] = csr[csr_mbadaddr];
-                        pc = csr[csr_htvec];
+                        setBitsIn(csr.mstatus, static_cast<UIntType>(Hypervisor), 1, 2);
+                        csr.hepc = csr.mepc;
+                        csr.hcause = csr.mcause;
+                        csr.hbadaddr = csr.mbadaddr;
+                        pc = csr.htvec;
+                        ++csr.instret;
                     return;
                     default:
                         throw Exception(Exception::Code::IllegalInstruction);
@@ -1275,9 +1658,10 @@ class Cpu {
     }
 
     bool fetchAndExecute() {
+        ++csr.cycle;
         Exception::Code cause;
         UIntType badaddr = 0, pcNextValue = pc;
-        PrivilegeMode cpm = (PrivilegeMode)getBitsFrom(csr[csr_mstatus], 1, 2);
+        PrivilegeMode cpm = (PrivilegeMode)getBitsFrom(csr.mstatus, 1, 2);
 
         try {
             UIntType mappedPC = translate(FetchInstruction, pc);
@@ -1360,6 +1744,7 @@ class Cpu {
                 return true;
             }
             pc = pcNextValue;
+            ++csr.instret;
             return true;
         } catch(MemoryAccessException e) {
             badaddr = e.address;
@@ -1371,27 +1756,26 @@ class Cpu {
         pcNextValue = cpm*0x40;
         //TODO : Non Maskable Interrupts
 
-        UIntType mstatus = csr[csr_mstatus];
         if(getBitsFrom(static_cast<UIntType>(cause), XLEN-1, 1)) { // Interrupt
-            if(getBitsFrom(mstatus, 0, 1)) {
-                // TODO: Check Interrupt flag in mstatus
+            if(getBitsFrom(csr.mstatus, 0, 1)) {
+                // TODO: Check Interrupt flag in csr.mstatus
             }
             // TODO: mip, mie
 
-            if(getBitsFrom(csr[csr_mtdeleg], cause*4+cpm+16, 1)) {
+            if(getBitsFrom(csr.mtdeleg, cause*4+cpm+16, 1)) {
                 if(EXT&H_HypervisorMode) {
                     if(cpm <= Hypervisor)
-                        cpm = (getBitsFrom(csr[csr_htdeleg], cause*4+cpm+16, 1)) ? Supervisor : Hypervisor;
+                        cpm = (getBitsFrom(csr.htdeleg, cause*4+cpm+16, 1)) ? Supervisor : Hypervisor;
                     else
                         cpm = Machine;
                 }else if(EXT&S_SupervisorMode)
                     cpm = (cpm <= Supervisor) ? Supervisor : Machine;
             }
         }else{ // Trap
-            if(getBitsFrom(csr[csr_mtdeleg], cause, 1)) {
+            if(getBitsFrom(csr.mtdeleg, cause, 1)) {
                 if(EXT&H_HypervisorMode) {
                     if(cpm <= Hypervisor)
-                        cpm = (getBitsFrom(csr[csr_htdeleg], cause, 1)) ? Supervisor : Hypervisor;
+                        cpm = (getBitsFrom(csr.htdeleg, cause, 1)) ? Supervisor : Hypervisor;
                     else
                         cpm = Machine;
                 }else if(EXT&S_SupervisorMode)
@@ -1402,34 +1786,34 @@ class Cpu {
         pc &= ~TrailingBitMask<UIntType>((EXT&C_CompressedInstructions)?1:2);
         switch(cpm) {
             case Supervisor:
-                csr[csr_sbadaddr] = badaddr;
-                csr[csr_scause] = cause;
-                csr[csr_sepc] = pc;
-                pcNextValue += csr[csr_stvec];
+                csr.sbadaddr = badaddr;
+                csr.scause = cause;
+                csr.sepc = pc;
+                pcNextValue += csr.stvec;
             break;
             case Hypervisor:
-                csr[csr_hbadaddr] = badaddr;
-                csr[csr_hcause] = cause;
-                csr[csr_hepc] = pc;
-                pcNextValue += csr[csr_htvec];
+                csr.hbadaddr = badaddr;
+                csr.hcause = cause;
+                csr.hepc = pc;
+                pcNextValue += csr.htvec;
             break;
             case User:
                 cpm = Machine;
             case Machine:
-                csr[csr_mbadaddr] = badaddr;
-                csr[csr_mcause] = cause;
-                csr[csr_mepc] = pc;
-                pcNextValue += csr[csr_mtvec];
+                csr.mbadaddr = badaddr;
+                csr.mcause = cause;
+                csr.mepc = pc;
+                pcNextValue += csr.mtvec;
             break;
         }
         pc = pcNextValue;
-        setBitsIn(mstatus, static_cast<UIntType>((mstatus<<3)&TrailingBitMask<UIntType>(12)), 0, 12);
-        setBitsIn(mstatus, static_cast<UIntType>(cpm<<1), 0, 3);
-        setBitsIn(mstatus, static_cast<UIntType>(0), 16, 1);
-        csr[csr_mstatus] = mstatus;
+        setBitsIn(csr.mstatus, getBitsFrom(csr.mstatus, 3, 12), 0, 12);
+        setBitsIn(csr.mstatus, static_cast<UIntType>(cpm<<1), 0, 3);
+        setBitsIn(csr.mstatus, static_cast<UIntType>(0), 16, 1);
 
         // TODO : Debugging
         printf("TRAPED!\n");
+
         return false;
     }
 };
