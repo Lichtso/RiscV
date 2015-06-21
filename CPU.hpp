@@ -66,7 +66,6 @@ class Cpu {
         UInt8 fflags;
         UIntType frm;
         UIntType fcsr;
-        UIntType sstatus;
         UIntType stvec;
         UIntType sie;
         UIntType stimecmp;
@@ -80,7 +79,6 @@ class Cpu {
         UInt64 cycle;
         UInt64 time;
         UInt64 instret;
-        UIntType hstatus;
         UIntType htvec;
         UIntType htdeleg;
         UIntType htimecmp;
@@ -93,7 +91,7 @@ class Cpu {
         UIntType mcpuid;
         UIntType mimpid;
         UIntType mhartid;
-        UIntType mstatus;
+        UIntType status;
         UIntType mtvec;
         UIntType mtdeleg;
         UIntType mie;
@@ -131,7 +129,6 @@ class Cpu {
         csr.fflags = 0;
         csr.frm = 0;
         csr.fcsr = 0;
-        csr.sstatus = 0;
         csr.stvec = 0;
         csr.sie = 0;
         csr.stimecmp = 0;
@@ -142,7 +139,6 @@ class Cpu {
         csr.sip = 0;
         csr.sptbr = 0;
         csr.sasid = 0;
-        csr.hstatus = 0;
         csr.htvec = 0;
         csr.htdeleg = 0;
         csr.htimecmp = 0;
@@ -153,9 +149,9 @@ class Cpu {
         csr.tbd = 0;
 
         {
-            csr.mstatus = 6;
+            csr.status = 6;
             for(UInt8 l = 1; l < getLevels(); ++l)
-                csr.mstatus |= 1<<(l*3);
+                csr.status |= 1<<(l*3);
             // TODO XS, VM, SD
         }
         csr.mtvec = 0x100;
@@ -222,7 +218,9 @@ class Cpu {
     }
 
     UIntType readCSR(UInt16 index) {
-        // TODO : Check priviledge mode
+        // TODO : Partial CSRs
+        PrivilegeMode cpm = (PrivilegeMode)getBitsFrom(csr.status, 1, 2);
+
         switch(index) {
             case csr_fflags:
                 return csr.fflags;
@@ -249,8 +247,14 @@ class Cpu {
                 if(XLEN > 32)
                     throw Exception(Exception::Code::IllegalInstruction);
                 return getBitsFrom(csr.instret, 32, XLEN);
+            default:
+                if(cpm == User)
+                    throw Exception(Exception::Code::IllegalInstruction);
+        }
+
+        switch(index) {
             case csr_sstatus:
-                return csr.sstatus;
+                return csr.status; // TODO
             case csr_stvec:
                 return csr.stvec;
             case csr_sie:
@@ -293,8 +297,14 @@ class Cpu {
                 if(XLEN > 32)
                     throw Exception(Exception::Code::IllegalInstruction);
                 return getBitsFrom(csr.instret, 32, XLEN);
+            default:
+                if(cpm == Supervisor)
+                    throw Exception(Exception::Code::IllegalInstruction);
+        }
+
+        switch(index) {
             case csr_hstatus:
-                return csr.hstatus;
+                return csr.status; // TODO
             case csr_htvec:
                 return csr.htvec;
             case csr_htdeleg:
@@ -316,13 +326,19 @@ class Cpu {
             case csr_hbadaddr:
                 return csr.hbadaddr;
             case csr_tbd:
-                return csr.tbd;
+                return csr.tbd; // TODO
             case csr_stimew:
                 return getBitsFrom(csr.stime, 0, XLEN);
             case csr_stimehw:
                 if(XLEN > 32)
                     throw Exception(Exception::Code::IllegalInstruction);
                 return getBitsFrom(csr.stime, 32, XLEN);
+            default:
+                if(cpm == Hypervisor)
+                    throw Exception(Exception::Code::IllegalInstruction);
+        }
+
+        switch(index) {
             case csr_mcpuid:
                 return csr.mcpuid;
             case csr_mimpid:
@@ -330,7 +346,7 @@ class Cpu {
             case csr_mhartid:
                 return csr.mhartid;
             case csr_mstatus:
-                return csr.mstatus;
+                return csr.status; // TODO
             case csr_mtvec:
                 return csr.mtvec;
             case csr_mtdeleg:
@@ -377,8 +393,9 @@ class Cpu {
                 return csr.mtohost;
             case csr_mfromhost:
                 return csr.mfromhost;
+            default:
+                throw Exception(Exception::Code::IllegalInstruction);
         }
-        throw Exception(Exception::Code::IllegalInstruction);
     }
 
     void writeRegXU(UInt8 index, UIntType value) {
@@ -390,7 +407,9 @@ class Cpu {
     }
 
     void writeCSR(UInt16 index, UIntType value) {
-        // TODO : Check priviledge mode
+        // TODO : Partial CSRs
+        PrivilegeMode cpm = (PrivilegeMode)getBitsFrom(csr.status, 1, 2);
+
         switch(index) {
             case csr_fflags:
                 csr.fflags = value;
@@ -408,8 +427,14 @@ class Cpu {
             case csr_timeh:
             case csr_instreth:
                 throw Exception(Exception::Code::IllegalInstruction);
+            default:
+                if(cpm == User)
+                    throw Exception(Exception::Code::IllegalInstruction);
+        }
+
+        switch(index) {
             case csr_sstatus:
-                csr.sstatus = value;
+                csr.status = value; // TODO
             break;
             case csr_stvec:
                 csr.stvec = value;
@@ -468,8 +493,14 @@ class Cpu {
                     throw Exception(Exception::Code::IllegalInstruction);
                 setBitsIn(csr.instret, value, 32, 32);
             break;
+            default:
+                if(cpm == Supervisor)
+                    throw Exception(Exception::Code::IllegalInstruction);
+        }
+
+        switch(index) {
             case csr_hstatus:
-                csr.hstatus = value;
+                csr.status = value; // TODO
             break;
             case csr_htvec:
                 csr.htvec = value;
@@ -496,7 +527,7 @@ class Cpu {
                 csr.hbadaddr = value;
             break;
             case csr_tbd:
-                csr.tbd = value;
+                csr.tbd = value; // TODO
             break;
             case csr_stimew:
                 setBitsIn(csr.stime, value, 0, XLEN);
@@ -506,17 +537,14 @@ class Cpu {
                     throw Exception(Exception::Code::IllegalInstruction);
                 setBitsIn(csr.stime, value, 32, 32);
             break;
-            case csr_mcpuid:
-                csr.mcpuid = value;
-            break;
-            case csr_mimpid:
-                csr.mimpid = value;
-            break;
-            case csr_mhartid:
-                csr.mhartid = value;
-            break;
+            default:
+                if(cpm == Hypervisor)
+                    throw Exception(Exception::Code::IllegalInstruction);
+        }
+
+        switch(index) {
             case csr_mstatus:
-                csr.mstatus = value;
+                csr.status = value; // TODO
             break;
             case csr_mtvec:
                 csr.mtvec = value;
@@ -585,8 +613,9 @@ class Cpu {
             case csr_mfromhost:
                 csr.mfromhost = value;
             break;
+            default:
+                throw Exception(Exception::Code::IllegalInstruction);
         }
-        throw Exception(Exception::Code::IllegalInstruction);
     }
 
     void seal(UIntType address, UInt8 length) {
@@ -613,7 +642,7 @@ class Cpu {
     }
 
     template<typename PteType, UInt8 MaxLen, UInt8 MinLen, UInt8 MaxLevel>
-    AddressType translatePaged(PrivilegeMode mode, MemoryAccessType mat, UIntType src) {
+    AddressType translatePaged(PrivilegeMode cpm, MemoryAccessType mat, UIntType src) {
         UInt8 type, i = MaxLevel, offsetLen = 12;
         AddressType dst = csr.sptbr;
         PteType pte;
@@ -642,7 +671,7 @@ class Cpu {
         bool storePte = false;
         switch(mat) {
             case FetchInstruction:
-                if(mode == User) {
+                if(cpm == User) {
                     if(type >= 8 || (type&2) == 0)
                         throw MemoryAccessException((Exception::Code)(mat+1), src);
                 }else{
@@ -651,13 +680,13 @@ class Cpu {
                 }
             break;
             case LoadData:
-                if(mode == User && type >= 8)
+                if(cpm == User && type >= 8)
                     throw MemoryAccessException((Exception::Code)(mat+1), src);
             break;
             case StoreData:
                 if((type&1) == 0)
                     throw MemoryAccessException((Exception::Code)(mat+1), src);
-                if(mode == User && type >= 8)
+                if(cpm == User && type >= 8)
                     throw MemoryAccessException((Exception::Code)(mat+1), src);
                 if((pte&(1ULL<<6)) == 0) { // Dirty Bit
                     pte |= 1ULL<<6;
@@ -678,13 +707,13 @@ class Cpu {
     }
 
     AddressType translate(MemoryAccessType mat, UIntType src) {
-        bool mPrv = getBitsFrom(csr.mstatus, 16, 1);
-        PrivilegeMode mode = (PrivilegeMode)getBitsFrom(csr.mstatus, 1, 2);
-        if(mode != Machine || mat != FetchInstruction || mPrv)
-            mode = (PrivilegeMode)getBitsFrom(csr.mstatus, 4, 2);
+        bool mPrv = getBitsFrom(csr.status, 16, 1);
+        PrivilegeMode cpm = (PrivilegeMode)getBitsFrom(csr.status, 1, 2);
+        if(cpm != Machine || mat != FetchInstruction || mPrv)
+            cpm = (PrivilegeMode)getBitsFrom(csr.status, 4, 2);
 
         AddressType dst;
-        switch(getBitsFrom(csr.mstatus, 17, 5)) {
+        switch(getBitsFrom(csr.status, 17, 5)) {
             case 0: // Mbare
                 dst = src;
             break;
@@ -709,19 +738,19 @@ class Cpu {
                 }
             } break;
             case 8: // Sv32
-                dst = translatePaged<UInt32, 12, 10, 1>(mode, mat, src);
+                dst = translatePaged<UInt32, 12, 10, 1>(cpm, mat, src);
             break;
             case 9: // Sv39
-                dst = translatePaged<UInt64, 20, 9, 2>(mode, mat, src);
+                dst = translatePaged<UInt64, 20, 9, 2>(cpm, mat, src);
             break;
             case 10: // Sv48
-                dst = translatePaged<UInt64, 11, 9, 3>(mode, mat, src);
+                dst = translatePaged<UInt64, 11, 9, 3>(cpm, mat, src);
             break;
             case 11: // Sv57
-                dst = translatePaged<UInt64, 16, 9, 4>(mode, mat, src);
+                dst = translatePaged<UInt64, 16, 9, 4>(cpm, mat, src);
             break;
             case 12: // Sv64
-                dst = translatePaged<UInt64, 15, 13, 5>(mode, mat, src);
+                dst = translatePaged<UInt64, 15, 13, 5>(cpm, mat, src);
             break;
         }
         return dst;
@@ -1537,7 +1566,7 @@ class Cpu {
     void executeOpcode73(const Instruction& instruction, UIntType pcNextValue) {
         switch(instruction.funct[0]) {
             case 0: {
-                PrivilegeMode cpm = (PrivilegeMode)getBitsFrom(csr.mstatus, 1, 2);
+                PrivilegeMode cpm = (PrivilegeMode)getBitsFrom(csr.status, 1, 2);
                 switch(static_cast<UInt32>(instruction.imm)) {
                     case 0x0000: { // ECALL
                         pc = pcNextValue; // TODO : Find out how pc behaves
@@ -1561,8 +1590,8 @@ class Cpu {
                                 pc = csr.mepc;
                             break;
                         }
-                        setBitsIn(csr.mstatus, static_cast<UIntType>((csr.mstatus&TrailingBitMask<UIntType>(12))>>3), 0, 12);
-                        setBitsIn(csr.mstatus, static_cast<UIntType>((EXT&U_UserMode)?1:7), (getLevels()-1)*3, 3);
+                        setBitsIn(csr.status, static_cast<UIntType>((csr.status&TrailingBitMask<UIntType>(12))>>3), 0, 12);
+                        setBitsIn(csr.status, static_cast<UIntType>((EXT&U_UserMode)?1:7), (getLevels()-1)*3, 3);
                         ++csr.instret;
                     } return;
                     case 0x0101: // SFENCE.VM rs1
@@ -1574,8 +1603,8 @@ class Cpu {
                     case 0x0205: // HRTS
                         if(cpm != Hypervisor)
                             throw Exception(Exception::Code::IllegalInstruction);
-                        setBitsIn(csr.mstatus, static_cast<UIntType>(Supervisor), 1, 2);
-                        csr.mstatus = csr.mstatus;
+                        setBitsIn(csr.status, static_cast<UIntType>(Supervisor), 1, 2);
+                        csr.status = csr.status;
                         csr.sepc = csr.hepc;
                         csr.scause = csr.hcause;
                         csr.sbadaddr = csr.hbadaddr;
@@ -1585,8 +1614,8 @@ class Cpu {
                     case 0x0305: // MRTS
                         if(cpm != Machine)
                             throw Exception(Exception::Code::IllegalInstruction);
-                        setBitsIn(csr.mstatus, static_cast<UIntType>(Supervisor), 1, 2);
-                        csr.mstatus = csr.mstatus;
+                        setBitsIn(csr.status, static_cast<UIntType>(Supervisor), 1, 2);
+                        csr.status = csr.status;
                         csr.sepc = csr.mepc;
                         csr.scause = csr.mcause;
                         csr.sbadaddr = csr.mbadaddr;
@@ -1596,7 +1625,7 @@ class Cpu {
                     case 0x0306: // MRTH
                         if(cpm != Machine)
                             throw Exception(Exception::Code::IllegalInstruction);
-                        setBitsIn(csr.mstatus, static_cast<UIntType>(Hypervisor), 1, 2);
+                        setBitsIn(csr.status, static_cast<UIntType>(Hypervisor), 1, 2);
                         csr.hepc = csr.mepc;
                         csr.hcause = csr.mcause;
                         csr.hbadaddr = csr.mbadaddr;
@@ -1661,7 +1690,7 @@ class Cpu {
         ++csr.cycle;
         Exception::Code cause;
         UIntType badaddr = 0, pcNextValue = pc;
-        PrivilegeMode cpm = (PrivilegeMode)getBitsFrom(csr.mstatus, 1, 2);
+        PrivilegeMode cpm = (PrivilegeMode)getBitsFrom(csr.status, 1, 2);
 
         try {
             UIntType mappedPC = translate(FetchInstruction, pc);
@@ -1757,8 +1786,8 @@ class Cpu {
         //TODO : Non Maskable Interrupts
 
         if(getBitsFrom(static_cast<UIntType>(cause), XLEN-1, 1)) { // Interrupt
-            if(getBitsFrom(csr.mstatus, 0, 1)) {
-                // TODO: Check Interrupt flag in csr.mstatus
+            if(getBitsFrom(csr.status, 0, 1)) {
+                // TODO: Check Interrupt flag in csr.status
             }
             // TODO: mip, mie
 
@@ -1807,9 +1836,9 @@ class Cpu {
             break;
         }
         pc = pcNextValue;
-        setBitsIn(csr.mstatus, getBitsFrom(csr.mstatus, 3, 12), 0, 12);
-        setBitsIn(csr.mstatus, static_cast<UIntType>(cpm<<1), 0, 3);
-        setBitsIn(csr.mstatus, static_cast<UIntType>(0), 16, 1);
+        setBitsIn(csr.status, getBitsFrom(csr.status, 3, 12), 0, 12);
+        setBitsIn(csr.status, static_cast<UIntType>(cpm<<1), 0, 3);
+        setBitsIn(csr.status, static_cast<UIntType>(0), 16, 1);
 
         // TODO : Debugging
         printf("TRAPED!\n");
