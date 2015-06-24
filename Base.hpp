@@ -63,6 +63,11 @@ void setBitsIn(unsigned_type& in, unsigned_type data, UInt8 at, UInt8 len) {
 }
 
 template<typename unsigned_type>
+void setMaskedIn(unsigned_type& in, unsigned_type data, unsigned_type mask) {
+	in = (in&~mask)|(data&mask);
+}
+
+template<typename unsigned_type>
 UInt8 clz(unsigned_type value) {
 	if(value == 0) return sizeof(unsigned_type)*8;
 	if(sizeof(unsigned_type) <= 2)

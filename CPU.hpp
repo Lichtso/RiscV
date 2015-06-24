@@ -8,7 +8,7 @@ enum ISAExtensions {
     B_BitManipulation = 1U<<1, // Maybe some day
     C_CompressedInstructions = 1U<<2,
     D_DoubleFloat = 1U<<3,
-    E_UNKNOWN = 1U<<4, // TODO Find out what RV32E is
+    E_UNKNOWN = 1U<<4, // TODO [Find out what RV32E is]
     F_Float = 1U<<5,
     G_ScalarISA = 1U<<6, // IMAFD
     H_HypervisorMode = 1U<<7,
@@ -86,7 +86,6 @@ class Cpu {
         UIntType hepc;
         UIntType hcause;
         UIntType hbadaddr;
-        UIntType tbd;
         UInt64 stime;
         UIntType mcpuid;
         UIntType mimpid;
@@ -114,6 +113,19 @@ class Cpu {
     } csr;
     std::set<std::pair<AddressType, UInt8>> seals;
 
+    constexpr UIntType getStatusCSRMask(PrivilegeMode mode) {
+        UIntType mask;
+        switch(mode) {
+            case Supervisor:
+                mask = 0x1F019;
+            break;
+            default:
+                return 0;
+        }
+        setBitsIn(mask, 1ULL, XLEN-1, 1);
+        return mask;
+    }
+
     constexpr UInt8 getLevels() {
         if(EXT&H_HypervisorMode) return 4;
         if(EXT&S_SupervisorMode) return 3;
@@ -125,7 +137,9 @@ class Cpu {
         memset(regX, 0, sizeof(regX));
         memset(regF, 0, sizeof(regF));
 
-        // TODO
+        // TODO : multi core clock
+        // TODO : timer interrupts
+
         csr.fflags = 0;
         csr.frm = 0;
         csr.fcsr = 0;
@@ -146,7 +160,6 @@ class Cpu {
         csr.hepc = 0;
         csr.hcause = 0;
         csr.hbadaddr = 0;
-        csr.tbd = 0;
 
         {
             csr.status = 6;
@@ -218,7 +231,6 @@ class Cpu {
     }
 
     UIntType readCSR(UInt16 index) {
-        // TODO : Partial CSRs
         PrivilegeMode cpm = (PrivilegeMode)getBitsFrom(csr.status, 1, 2);
 
         switch(index) {
@@ -254,11 +266,11 @@ class Cpu {
 
         switch(index) {
             case csr_sstatus:
-                return csr.status; // TODO
+                return csr.status&getStatusCSRMask(Supervisor);
             case csr_stvec:
                 return csr.stvec;
             case csr_sie:
-                return csr.sie;
+                return csr.sie&0x22;
             case csr_stimecmp:
                 return csr.stimecmp;
             case csr_stime:
@@ -276,7 +288,7 @@ class Cpu {
             case csr_sbadaddr:
                 return csr.sbadaddr;
             case csr_sip:
-                return csr.sip;
+                return csr.sip&0x2;
             case csr_sptbr:
                 return csr.sptbr;
             case csr_sasid:
@@ -304,11 +316,13 @@ class Cpu {
 
         switch(index) {
             case csr_hstatus:
-                return csr.status; // TODO
+                return csr.status; // TODO wait for next riscv-privilege-spec
             case csr_htvec:
                 return csr.htvec;
             case csr_htdeleg:
                 return csr.htdeleg;
+            /*case csr_hie: TODO wait for next riscv-privilege-spec
+                return csr.hie&0x66;*/
             case csr_htimecmp:
                 return csr.htimecmp;
             case csr_htime:
@@ -325,8 +339,8 @@ class Cpu {
                 return csr.hcause;
             case csr_hbadaddr:
                 return csr.hbadaddr;
-            case csr_tbd:
-                return csr.tbd; // TODO
+            /*case csr_hip: TODO wait for next riscv-privilege-spec
+                return csr.hip&0x6;*/
             case csr_stimew:
                 return getBitsFrom(csr.stime, 0, XLEN);
             case csr_stimehw:
@@ -346,7 +360,7 @@ class Cpu {
             case csr_mhartid:
                 return csr.mhartid;
             case csr_mstatus:
-                return csr.status; // TODO
+                return csr.status;
             case csr_mtvec:
                 return csr.mtvec;
             case csr_mtdeleg:
@@ -407,7 +421,6 @@ class Cpu {
     }
 
     void writeCSR(UInt16 index, UIntType value) {
-        // TODO : Partial CSRs
         PrivilegeMode cpm = (PrivilegeMode)getBitsFrom(csr.status, 1, 2);
 
         switch(index) {
@@ -434,13 +447,13 @@ class Cpu {
 
         switch(index) {
             case csr_sstatus:
-                csr.status = value; // TODO
+                setMaskedIn(csr.status, value, getStatusCSRMask(Supervisor));
             break;
             case csr_stvec:
                 csr.stvec = value;
             break;
             case csr_sie:
-                csr.sie = value;
+                setMaskedIn(csr.sie, value, 0x22ULL);
             break;
             case csr_stimecmp:
                 csr.stimecmp = value;
@@ -461,7 +474,7 @@ class Cpu {
                 csr.sbadaddr = value;
             break;
             case csr_sip:
-                csr.sip = value;
+                setMaskedIn(csr.sip, value, 0x2ULL);
             break;
             case csr_sptbr:
                 csr.sptbr = value;
@@ -500,7 +513,7 @@ class Cpu {
 
         switch(index) {
             case csr_hstatus:
-                csr.status = value; // TODO
+                csr.status = value; // TODO wait for next riscv-privilege-spec
             break;
             case csr_htvec:
                 csr.htvec = value;
@@ -508,6 +521,9 @@ class Cpu {
             case csr_htdeleg:
                 csr.htdeleg = value;
             break;
+            /*case csr_hie: TODO wait for next riscv-privilege-spec
+                setMaskedIn(csr.hie, value, 0x66ULL);
+            break;*/
             case csr_htimecmp:
                 csr.htimecmp = value;
             break;
@@ -526,9 +542,9 @@ class Cpu {
             case csr_hbadaddr:
                 csr.hbadaddr = value;
             break;
-            case csr_tbd:
-                csr.tbd = value; // TODO
-            break;
+            /*case csr_hip: TODO wait for next riscv-privilege-spec
+                setMaskedIn(csr.hip, value, 0x6ULL);
+            break;*/
             case csr_stimew:
                 setBitsIn(csr.stime, value, 0, XLEN);
             break;
@@ -579,7 +595,7 @@ class Cpu {
                 csr.mbadaddr = value;
             break;
             case csr_mip:
-                csr.mip = value;
+                setMaskedIn(csr.mip, value, 0xEULL);
             break;
             case csr_mbase:
                 csr.mbase = value;
@@ -1569,7 +1585,7 @@ class Cpu {
                 PrivilegeMode cpm = (PrivilegeMode)getBitsFrom(csr.status, 1, 2);
                 switch(static_cast<UInt32>(instruction.imm)) {
                     case 0x0000: { // ECALL
-                        pc = pcNextValue; // TODO : Find out how pc behaves
+                        pc = pcNextValue; // TODO : [Find out how pc behaves]
                         ++csr.instret;
                         throw Exception((Exception::Code)(Exception::Code::EnvironmentCallFromU+cpm));
                     }

@@ -35,6 +35,7 @@ enum CSR {
     csr_hstatus = 0x200,
     csr_htvec = 0x201,
     csr_htdeleg = 0x202,
+    //csr_hie = 0x204,
     csr_htimecmp = 0x221,
     csr_htime = 0xE01,
     csr_htimeh = 0xE81,
@@ -42,7 +43,8 @@ enum CSR {
     csr_hepc = 0x241,
     csr_hcause = 0x242,
     csr_hbadaddr = 0x243,
-    csr_tbd = 0x280,
+    //csr_hip = 0x244,
+    //csr_ = 0x28X, // To Be Determined (TBD)
     csr_stimew = 0xA01,
     csr_stimehw = 0xA81,
     csr_mcpuid = 0xF00,
