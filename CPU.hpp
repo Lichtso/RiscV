@@ -52,6 +52,10 @@ class Cpu {
         Machine = 3
     };
 
+    std::chrono::time_point<std::chrono::system_clock> clockSync;
+    UIntType cyclesToClockSync, cyclesToClockSyncMax;
+    UInt64 averageElapsedTime;
+
     UIntType pc;
     union {
         IntType I;
@@ -118,6 +122,9 @@ class Cpu {
         switch(mode) {
             case Supervisor:
                 mask = 0x1F019;
+            break;
+            case Hypervisor:
+                //mask = 0x1F019;
             break;
             default:
                 return 0;
@@ -187,9 +194,14 @@ class Cpu {
         csr.mdbound = 0;
         csr.mtohost = 0;
         csr.mfromhost = 0;
+
+        cyclesToClockSync = 0;
+        averageElapsedTime = 5000;
+        clockSync = std::chrono::system_clock::now();
     }
 
     Cpu(UIntType index = 0) {
+        cyclesToClockSyncMax = 10;
         reset();
 
         UIntType mcpuid;
@@ -1703,8 +1715,19 @@ class Cpu {
     }
 
     bool fetchAndExecute() {
+        if(cyclesToClockSync == 0) {
+            auto now = std::chrono::system_clock::now();
+            auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(now-clockSync).count();
+            clockSync = now;
+            averageElapsedTime = elapsed/(cyclesToClockSyncMax+1);
+            cyclesToClockSync = cyclesToClockSyncMax;
+            csr.mtime += elapsed;
+        }else
+            --cyclesToClockSync;
+        csr.mtime += averageElapsedTime;
+
         ++csr.cycle;
-        Exception::Code cause;
+        UInt8 cause;
         UIntType badaddr = 0, pcNextValue = pc;
         PrivilegeMode cpm = (PrivilegeMode)getBitsFrom(csr.status, 1, 2);
 
@@ -1805,27 +1828,19 @@ class Cpu {
             if(getBitsFrom(csr.status, 0, 1)) {
                 // TODO: Check Interrupt flag in csr.status
             }
+            cause = (cause&0xF)*4+cpm;
             // TODO: mip, mie
+            cause += 16;
+        }
 
-            if(getBitsFrom(csr.mtdeleg, cause*4+cpm+16, 1)) {
-                if(EXT&H_HypervisorMode) {
-                    if(cpm <= Hypervisor)
-                        cpm = (getBitsFrom(csr.htdeleg, cause*4+cpm+16, 1)) ? Supervisor : Hypervisor;
-                    else
-                        cpm = Machine;
-                }else if(EXT&S_SupervisorMode)
-                    cpm = (cpm <= Supervisor) ? Supervisor : Machine;
-            }
-        }else{ // Trap
-            if(getBitsFrom(csr.mtdeleg, cause, 1)) {
-                if(EXT&H_HypervisorMode) {
-                    if(cpm <= Hypervisor)
-                        cpm = (getBitsFrom(csr.htdeleg, cause, 1)) ? Supervisor : Hypervisor;
-                    else
-                        cpm = Machine;
-                }else if(EXT&S_SupervisorMode)
-                    cpm = (cpm <= Supervisor) ? Supervisor : Machine;
-            }
+        if(getBitsFrom(csr.mtdeleg, cause, 1)) {
+            if(EXT&H_HypervisorMode) {
+                if(cpm <= Hypervisor)
+                    cpm = (getBitsFrom(csr.htdeleg, cause, 1)) ? Supervisor : Hypervisor;
+                else
+                    cpm = Machine;
+            }else if(EXT&S_SupervisorMode)
+                cpm = (cpm <= Supervisor) ? Supervisor : Machine;
         }
 
         pc &= ~TrailingBitMask<UIntType>((EXT&C_CompressedInstructions)?1:2);
