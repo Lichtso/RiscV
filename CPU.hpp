@@ -71,13 +71,11 @@ class Cpu {
         UIntType frm;
         UIntType fcsr;
         UIntType stvec;
-        UIntType sie;
         UIntType stimecmp;
         UIntType sscratch;
         UIntType sepc;
         UIntType scause;
         UIntType sbadaddr;
-        UIntType sip;
         UIntType sptbr;
         UIntType sasid;
         UInt64 cycle;
@@ -97,14 +95,14 @@ class Cpu {
         UIntType status;
         UIntType mtvec;
         UIntType mtdeleg;
-        UIntType mie;
+        UIntType interruptEnabled;
         UIntType mtimecmp;
         UInt64 mtime;
         UIntType mscratch;
         UIntType mepc;
         UIntType mcause;
         UIntType mbadaddr;
-        UIntType mip;
+        UIntType interruptPending;
         UIntType mbase;
         UIntType mbound;
         UIntType mibase;
@@ -151,13 +149,11 @@ class Cpu {
         csr.frm = 0;
         csr.fcsr = 0;
         csr.stvec = 0;
-        csr.sie = 0;
         csr.stimecmp = 0;
         csr.sscratch = 0;
         csr.sepc = 0;
         csr.scause = 0;
         csr.sbadaddr = 0;
-        csr.sip = 0;
         csr.sptbr = 0;
         csr.sasid = 0;
         csr.htvec = 0;
@@ -178,14 +174,14 @@ class Cpu {
         pc = csr.mtvec+0x100;
 
         csr.mtdeleg = 0;
-        csr.mie = 0;
+        csr.interruptEnabled = 0;
         csr.mtimecmp = 0;
         csr.mtime = 0;
         csr.mscratch = 0;
         csr.mepc = 0;
         csr.mcause = 0;
         csr.mbadaddr = 0;
-        csr.mip = 0;
+        csr.interruptPending = 0;
         csr.mbase = 0;
         csr.mbound = 0;
         csr.mibase = 0;
@@ -282,7 +278,7 @@ class Cpu {
             case csr_stvec:
                 return csr.stvec;
             case csr_sie:
-                return csr.sie&0x22;
+                return csr.interruptEnabled&0x22;
             case csr_stimecmp:
                 return csr.stimecmp;
             case csr_stime:
@@ -300,7 +296,7 @@ class Cpu {
             case csr_sbadaddr:
                 return csr.sbadaddr;
             case csr_sip:
-                return csr.sip&0x2;
+                return csr.interruptPending&0x2;
             case csr_sptbr:
                 return csr.sptbr;
             case csr_sasid:
@@ -334,7 +330,7 @@ class Cpu {
             case csr_htdeleg:
                 return csr.htdeleg;
             /*case csr_hie: TODO wait for next riscv-privilege-spec
-                return csr.hie&0x66;*/
+                return csr.interruptEnabled&0x66;*/
             case csr_htimecmp:
                 return csr.htimecmp;
             case csr_htime:
@@ -352,7 +348,7 @@ class Cpu {
             case csr_hbadaddr:
                 return csr.hbadaddr;
             /*case csr_hip: TODO wait for next riscv-privilege-spec
-                return csr.hip&0x6;*/
+                return csr.interruptPending&0x6;*/
             case csr_stimew:
                 return getBitsFrom(csr.stime, 0, XLEN);
             case csr_stimehw:
@@ -378,7 +374,7 @@ class Cpu {
             case csr_mtdeleg:
                 return csr.mtdeleg;
             case csr_mie:
-                return csr.mie;
+                return csr.interruptEnabled;
             case csr_mtimecmp:
                 return csr.mtimecmp;
             case csr_mtime:
@@ -396,7 +392,7 @@ class Cpu {
             case csr_mbadaddr:
                 return csr.mbadaddr;
             case csr_mip:
-                return csr.mip;
+                return csr.interruptPending;
             case csr_mbase:
                 return csr.mbase;
             case csr_mbound:
@@ -465,9 +461,10 @@ class Cpu {
                 csr.stvec = value;
             break;
             case csr_sie:
-                setMaskedIn(csr.sie, value, 0x22ULL);
+                setMaskedIn(csr.interruptEnabled, value, 0x22ULL);
             break;
             case csr_stimecmp:
+                setBitsIn(csr.interruptPending, 0ULL, 5, 1);
                 csr.stimecmp = value;
             break;
             case csr_stime:
@@ -486,7 +483,7 @@ class Cpu {
                 csr.sbadaddr = value;
             break;
             case csr_sip:
-                setMaskedIn(csr.sip, value, 0x2ULL);
+                setMaskedIn(csr.interruptPending, value, 0x2ULL);
             break;
             case csr_sptbr:
                 csr.sptbr = value;
@@ -534,9 +531,10 @@ class Cpu {
                 csr.htdeleg = value;
             break;
             /*case csr_hie: TODO wait for next riscv-privilege-spec
-                setMaskedIn(csr.hie, value, 0x66ULL);
+                setMaskedIn(csr.interruptEnabled, value, 0x66ULL);
             break;*/
             case csr_htimecmp:
+                setBitsIn(csr.interruptPending, 0ULL, 6, 1);
                 csr.htimecmp = value;
             break;
             case csr_htime:
@@ -555,7 +553,7 @@ class Cpu {
                 csr.hbadaddr = value;
             break;
             /*case csr_hip: TODO wait for next riscv-privilege-spec
-                setMaskedIn(csr.hip, value, 0x6ULL);
+                setMaskedIn(csr.interruptPending, value, 0x6ULL);
             break;*/
             case csr_stimew:
                 setBitsIn(csr.stime, value, 0, XLEN);
@@ -572,7 +570,7 @@ class Cpu {
 
         switch(index) {
             case csr_mstatus:
-                csr.status = value; // TODO
+                csr.status = value;
             break;
             case csr_mtvec:
                 csr.mtvec = value;
@@ -581,9 +579,10 @@ class Cpu {
                 csr.mtdeleg = value;
             break;
             case csr_mie:
-                csr.mie = value;
+                csr.interruptEnabled = value;
             break;
             case csr_mtimecmp:
+                setBitsIn(csr.interruptPending, 0ULL, 7, 1);
                 csr.mtimecmp = value;
             break;
             case csr_mtime:
@@ -607,7 +606,7 @@ class Cpu {
                 csr.mbadaddr = value;
             break;
             case csr_mip:
-                setMaskedIn(csr.mip, value, 0xEULL);
+                setMaskedIn(csr.interruptPending, value, 0xEULL);
             break;
             case csr_mbase:
                 csr.mbase = value;
@@ -1714,6 +1713,28 @@ class Cpu {
         pc = pcNextValue;
     }
 
+    #define updateTimerOfMode(name, index) \
+    csr.name##time += averageElapsedTime; \
+    if(csr.name##time >= csr.name##timecmp) \
+        setBitsIn(csr.interruptPending, 1ULL, index, 1);
+
+    bool checkForInterrupt(PrivilegeMode cpm, PrivilegeMode mode, UInt8& delegationBit) {
+        if(mode < cpm) return false;
+
+        for(UInt8 cause = 0; cause < 2; ++cause) {
+            delegationBit = cause*4+mode;
+            if(!getBitsFrom(csr.interruptPending, delegationBit, 1) ||
+               !getBitsFrom(csr.interruptEnabled, delegationBit, 1))
+                return false;
+        }
+
+        if(mode == cpm && !getBitsFrom(csr.status, 0, 1))
+            return false;
+
+        delegationBit += 16;
+        return true;
+    }
+
     bool fetchAndExecute() {
         if(cyclesToClockSync == 0) {
             auto now = std::chrono::system_clock::now();
@@ -1724,12 +1745,19 @@ class Cpu {
             csr.mtime += elapsed;
         }else
             --cyclesToClockSync;
-        csr.mtime += averageElapsedTime;
-
+        updateTimerOfMode(s, 5)
+        updateTimerOfMode(h, 6)
+        updateTimerOfMode(m, 7)
         ++csr.cycle;
-        UInt8 cause;
+
+        UInt8 cause, delegationBit;
         UIntType badaddr = 0, pcNextValue = pc;
-        PrivilegeMode cpm = (PrivilegeMode)getBitsFrom(csr.status, 1, 2);
+        PrivilegeMode cpm = static_cast<PrivilegeMode>(getBitsFrom(csr.status, 1, 2));
+
+        //TODO : Non Maskable Interrupts
+        for(UInt8 mode = Supervisor; mode <= Machine; ++mode)
+            if(checkForInterrupt(cpm, static_cast<PrivilegeMode>(mode), delegationBit))
+                goto handleException;
 
         try {
             UIntType mappedPC = translate(FetchInstruction, pc);
@@ -1816,27 +1844,17 @@ class Cpu {
             return true;
         } catch(MemoryAccessException e) {
             badaddr = e.address;
-            cause = e.cause;
+            delegationBit = cause = e.cause;
         } catch(Exception e) {
-            cause = e.cause;
+            delegationBit = cause = e.cause;
         }
 
+        handleException:
         pcNextValue = cpm*0x40;
-        //TODO : Non Maskable Interrupts
-
-        if(getBitsFrom(static_cast<UIntType>(cause), XLEN-1, 1)) { // Interrupt
-            if(getBitsFrom(csr.status, 0, 1)) {
-                // TODO: Check Interrupt flag in csr.status
-            }
-            cause = (cause&0xF)*4+cpm;
-            // TODO: mip, mie
-            cause += 16;
-        }
-
-        if(getBitsFrom(csr.mtdeleg, cause, 1)) {
+        if(getBitsFrom(csr.mtdeleg, delegationBit, 1)) {
             if(EXT&H_HypervisorMode) {
                 if(cpm <= Hypervisor)
-                    cpm = (getBitsFrom(csr.htdeleg, cause, 1)) ? Supervisor : Hypervisor;
+                    cpm = (getBitsFrom(csr.htdeleg, delegationBit, 1)) ? Supervisor : Hypervisor;
                 else
                     cpm = Machine;
             }else if(EXT&S_SupervisorMode)
