@@ -1625,8 +1625,7 @@ class Cpu {
                         // TODO : Flush caches
                     break;
                     case 0x0102: // WFI
-                        // TODO
-                    break;
+                    return;
                     case 0x0205: // HRTS
                         if(cpm != Hypervisor)
                             throw Exception(Exception::Code::IllegalInstruction);
