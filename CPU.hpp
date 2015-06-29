@@ -8,7 +8,7 @@ enum ISAExtensions {
     B_BitManipulation = 1U<<1, // Maybe some day
     C_CompressedInstructions = 1U<<2,
     D_DoubleFloat = 1U<<3,
-    E_UNKNOWN = 1U<<4, // TODO [Find out what RV32E is]
+    E_Embedded = 1U<<4, // Maybe some day
     F_Float = 1U<<5,
     G_ScalarISA = 1U<<6, // IMAFD
     H_HypervisorMode = 1U<<7,
@@ -203,7 +203,7 @@ class Cpu {
         UIntType mcpuid;
         switch(XLEN) {
             case 32:
-                mcpuid = 0; // TODO Find out what RV32E is
+                mcpuid = 0;
             break;
             case 64:
                 mcpuid = 2;
@@ -1595,11 +1595,9 @@ class Cpu {
             case 0: {
                 PrivilegeMode cpm = (PrivilegeMode)getBitsFrom(csr.status, 1, 2);
                 switch(static_cast<UInt32>(instruction.imm)) {
-                    case 0x0000: { // ECALL
-                        pc = pcNextValue; // TODO : [Find out how pc behaves]
+                    case 0x0000: // ECALL
                         ++csr.instret;
                         throw Exception((Exception::Code)(Exception::Code::EnvironmentCallFromU+cpm));
-                    }
                     case 0x0001: // EBREAK
                         ++csr.instret;
                         throw Exception(Exception::Code::Breakpoint);
